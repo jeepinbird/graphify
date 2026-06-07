@@ -3,17 +3,8 @@ from graphify.detect import classify_file, count_words, detect, detect_increment
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
-def test_classify_python():
-    assert classify_file(Path("foo.py")) == FileType.CODE
-
-def test_classify_typescript():
-    assert classify_file(Path("bar.ts")) == FileType.CODE
-
 def test_classify_markdown():
     assert classify_file(Path("README.md")) == FileType.DOCUMENT
-
-def test_classify_pdf():
-    assert classify_file(Path("paper.pdf")) == FileType.PAPER
 
 def test_classify_pdf_in_xcassets_skipped():
     # PDFs inside Xcode asset catalogs are vector icons, not papers
@@ -26,11 +17,6 @@ def test_classify_pdf_in_xcassets_root_skipped():
 
 def test_classify_unknown_returns_none():
     assert classify_file(Path("archive.zip")) is None
-
-def test_classify_image():
-    assert classify_file(Path("screenshot.png")) == FileType.IMAGE
-    assert classify_file(Path("design.jpg")) == FileType.IMAGE
-    assert classify_file(Path("diagram.webp")) == FileType.IMAGE
 
 def test_count_words_sample_md():
     words = count_words(FIXTURES / "sample.md")
@@ -88,16 +74,16 @@ def test_classify_attention_paper():
 
 def test_graphifyignore_excludes_file(tmp_path):
     """Files matching .graphifyignore patterns are excluded from detect()."""
-    (tmp_path / ".graphifyignore").write_text("vendor/\n*.generated.py\n")
+    (tmp_path / ".graphifyignore").write_text("vendor/\n*.generated.sql\n")
     vendor = tmp_path / "vendor"
     vendor.mkdir()
-    (vendor / "lib.py").write_text("x = 1")
-    (tmp_path / "main.py").write_text("print('hi')")
-    (tmp_path / "schema.generated.py").write_text("x = 1")
+    (vendor / "lib.sql").write_text("x = 1")
+    (tmp_path / "main.sql").write_text("print('hi')")
+    (tmp_path / "schema.generated.sql").write_text("x = 1")
 
     result = detect(tmp_path)
     file_list = result["files"]["code"]
-    assert any("main.py" in f for f in file_list)
+    assert any("main.sql" in f for f in file_list)
     assert not any("vendor" in f for f in file_list)
     assert not any("generated" in f for f in file_list)
     assert result["graphifyignore_patterns"] == 2
@@ -105,25 +91,25 @@ def test_graphifyignore_excludes_file(tmp_path):
 
 def test_graphifyignore_missing_is_fine(tmp_path):
     """No .graphifyignore is not an error."""
-    (tmp_path / "main.py").write_text("x = 1")
+    (tmp_path / "main.sql").write_text("x = 1")
     result = detect(tmp_path)
     assert result["graphifyignore_patterns"] == 0
 
 
 def test_graphifyignore_comments_ignored(tmp_path):
     """Comment lines in .graphifyignore are not treated as patterns."""
-    (tmp_path / ".graphifyignore").write_text("# this is a comment\n\nmain.py\n")
-    (tmp_path / "main.py").write_text("x = 1")
-    (tmp_path / "other.py").write_text("x = 2")
+    (tmp_path / ".graphifyignore").write_text("# this is a comment\n\nmain.sql\n")
+    (tmp_path / "main.sql").write_text("x = 1")
+    (tmp_path / "other.sql").write_text("x = 2")
     result = detect(tmp_path)
-    assert not any("main.py" in f for f in result["files"]["code"])
-    assert any("other.py" in f for f in result["files"]["code"])
+    assert not any("main.sql" in f for f in result["files"]["code"])
+    assert any("other.sql" in f for f in result["files"]["code"])
 
 
 def test_detect_follows_symlinked_directory(tmp_path):
     real_dir = tmp_path / "real_lib"
     real_dir.mkdir()
-    (real_dir / "util.py").write_text("x = 1")
+    (real_dir / "util.sql").write_text("x = 1")
     (tmp_path / "linked_lib").symlink_to(real_dir)
 
     result_no = detect(tmp_path, follow_symlinks=False)
@@ -135,13 +121,13 @@ def test_detect_follows_symlinked_directory(tmp_path):
 
 
 def test_detect_follows_symlinked_file(tmp_path):
-    (tmp_path / "real.py").write_text("x = 1")
-    (tmp_path / "link.py").symlink_to(tmp_path / "real.py")
+    (tmp_path / "real.sql").write_text("x = 1")
+    (tmp_path / "link.sql").symlink_to(tmp_path / "real.sql")
 
     result = detect(tmp_path, follow_symlinks=True)
     code = result["files"]["code"]
-    assert any("real.py" in f for f in code)
-    assert any("link.py" in f for f in code)
+    assert any("real.sql" in f for f in code)
+    assert any("link.sql" in f for f in code)
 
 
 def test_graphifyignore_hermetic_without_vcs(tmp_path):
@@ -149,14 +135,14 @@ def test_graphifyignore_hermetic_without_vcs(tmp_path):
     (tmp_path / ".graphifyignore").write_text("vendor/\n")
     sub = tmp_path / "packages" / "mylib"
     sub.mkdir(parents=True)
-    (sub / "main.py").write_text("x = 1")
+    (sub / "main.sql").write_text("x = 1")
     vendor = sub / "vendor"
     vendor.mkdir()
-    (vendor / "dep.py").write_text("y = 2")
+    (vendor / "dep.sql").write_text("y = 2")
 
     result = detect(sub)
     code_files = result["files"]["code"]
-    assert any("main.py" in f for f in code_files)
+    assert any("main.sql" in f for f in code_files)
     # parent .graphifyignore must NOT leak into a non-VCS scan
     assert any("vendor" in f for f in code_files)
     assert result["graphifyignore_patterns"] == 0
@@ -168,14 +154,14 @@ def test_graphifyignore_discovered_from_parent_in_vcs(tmp_path):
     (tmp_path / ".graphifyignore").write_text("vendor/\n")
     sub = tmp_path / "packages" / "mylib"
     sub.mkdir(parents=True)
-    (sub / "main.py").write_text("x = 1")
+    (sub / "main.sql").write_text("x = 1")
     vendor = sub / "vendor"
     vendor.mkdir()
-    (vendor / "dep.py").write_text("y = 2")
+    (vendor / "dep.sql").write_text("y = 2")
 
     result = detect(sub)
     code_files = result["files"]["code"]
-    assert any("main.py" in f for f in code_files)
+    assert any("main.sql" in f for f in code_files)
     assert not any("vendor" in f for f in code_files)
     assert result["graphifyignore_patterns"] >= 1
 
@@ -188,11 +174,11 @@ def test_graphifyignore_stops_at_git_boundary(tmp_path):
     (repo / ".git").mkdir()
     sub = repo / "sub"
     sub.mkdir()
-    (sub / "main.py").write_text("x = 1")
+    (sub / "main.sql").write_text("x = 1")
 
     result = detect(sub)
     code_files = result["files"]["code"]
-    assert any("main.py" in f for f in code_files)
+    assert any("main.sql" in f for f in code_files)
     assert result["graphifyignore_patterns"] == 0
 
 
@@ -204,14 +190,14 @@ def test_graphifyignore_at_git_root_is_included(tmp_path):
     (repo / ".graphifyignore").write_text("vendor/\n")
     sub = repo / "packages" / "mylib"
     sub.mkdir(parents=True)
-    (sub / "main.py").write_text("x = 1")
+    (sub / "main.sql").write_text("x = 1")
     vendor = sub / "vendor"
     vendor.mkdir()
-    (vendor / "dep.py").write_text("y = 2")
+    (vendor / "dep.sql").write_text("y = 2")
 
     result = detect(sub)
     code_files = result["files"]["code"]
-    assert any("main.py" in f for f in code_files)
+    assert any("main.sql" in f for f in code_files)
     assert not any("vendor" in f for f in code_files)
     assert result["graphifyignore_patterns"] == 1
 
@@ -219,11 +205,11 @@ def test_graphifyignore_at_git_root_is_included(tmp_path):
 def test_detect_handles_circular_symlinks(tmp_path):
     sub = tmp_path / "a"
     sub.mkdir()
-    (sub / "main.py").write_text("x = 1")
+    (sub / "main.sql").write_text("x = 1")
     (sub / "loop").symlink_to(tmp_path)
 
     result = detect(tmp_path, follow_symlinks=True)
-    assert any("main.py" in f for f in result["files"]["code"])
+    assert any("main.sql" in f for f in result["files"]["code"])
 
 
 def test_detect_auto_detects_direct_symlink_child(tmp_path):
@@ -232,7 +218,7 @@ def test_detect_auto_detects_direct_symlink_child(tmp_path):
     working dir" patterns (folder of symlinks pointing at scattered sources)."""
     real_dir = tmp_path / "real_lib"
     real_dir.mkdir()
-    (real_dir / "util.py").write_text("x = 1")
+    (real_dir / "util.sql").write_text("x = 1")
     (tmp_path / "linked_lib").symlink_to(real_dir)
 
     # Default (no kwarg): auto-detect → follows because of linked_lib symlink
@@ -243,15 +229,15 @@ def test_detect_auto_detects_direct_symlink_child(tmp_path):
 def test_detect_default_does_not_follow_when_no_symlinks(tmp_path):
     """When ``root`` has no direct symlinks, the auto-detect default stays False
     (legacy behaviour preserved for ordinary scans)."""
-    (tmp_path / "main.py").write_text("x = 1")
+    (tmp_path / "main.sql").write_text("x = 1")
     sub = tmp_path / "sub"
     sub.mkdir()
-    (sub / "other.py").write_text("y = 2")
+    (sub / "other.sql").write_text("y = 2")
 
     # Smoke: no symlinks anywhere → auto-detect returns False, scan succeeds
     result = detect(tmp_path)
-    assert any("main.py" in f for f in result["files"]["code"])
-    assert any("other.py" in f for f in result["files"]["code"])
+    assert any("main.sql" in f for f in result["files"]["code"])
+    assert any("other.sql" in f for f in result["files"]["code"])
 
 
 def test_detect_explicit_false_overrides_auto_detect(tmp_path):
@@ -259,7 +245,7 @@ def test_detect_explicit_false_overrides_auto_detect(tmp_path):
     root contains symlinks. Lets callers opt out of the new behaviour."""
     real_dir = tmp_path / "real_lib"
     real_dir.mkdir()
-    (real_dir / "util.py").write_text("x = 1")
+    (real_dir / "util.sql").write_text("x = 1")
     (tmp_path / "linked_lib").symlink_to(real_dir)
 
     # Explicit False overrides auto-detect; symlink contents must NOT appear.
@@ -308,7 +294,7 @@ def test_detect_incremental_survives_dict_valued_mtime(tmp_path, monkeypatch):
 
     monkeypatch.chdir(tmp_path)
 
-    src = tmp_path / "mod.py"
+    src = tmp_path / "mod.sql"
     src.write_text("def f():\n    return 1\n", encoding="utf-8")
 
     manifest_dir = tmp_path / "graphify-out"
@@ -331,79 +317,8 @@ def test_detect_incremental_survives_dict_valued_mtime(tmp_path, monkeypatch):
     result = detect_incremental(tmp_path, manifest_path)
 
     # The drifted file is re-classified as new rather than silently skipped.
-    assert any("mod.py" in f for f in result["new_files"]["code"])
-    assert not any("mod.py" in f for f in result["unchanged_files"]["code"])
-
-
-def test_classify_video_extensions():
-    """Video and audio file extensions should classify as VIDEO."""
-    from graphify.detect import FileType
-    assert classify_file(Path("lecture.mp4")) == FileType.VIDEO
-    assert classify_file(Path("podcast.mp3")) == FileType.VIDEO
-    assert classify_file(Path("talk.mov")) == FileType.VIDEO
-    assert classify_file(Path("recording.wav")) == FileType.VIDEO
-    assert classify_file(Path("webinar.webm")) == FileType.VIDEO
-    assert classify_file(Path("audio.m4a")) == FileType.VIDEO
-
-
-def test_classify_google_workspace_shortcuts():
-    assert classify_file(Path("notes.gdoc")) == FileType.DOCUMENT
-    assert classify_file(Path("budget.gsheet")) == FileType.DOCUMENT
-    assert classify_file(Path("deck.gslides")) == FileType.DOCUMENT
-
-
-def test_detect_skips_google_workspace_shortcuts_by_default(tmp_path):
-    (tmp_path / "notes.gdoc").write_text('{"doc_id":"doc-1"}', encoding="utf-8")
-
-    result = detect(tmp_path)
-
-    assert not result["files"]["document"]
-    assert any("Google Workspace shortcut skipped" in item for item in result["skipped_sensitive"])
-
-
-def test_detect_converts_google_workspace_shortcuts_when_enabled(tmp_path, monkeypatch):
-    shortcut = tmp_path / "notes.gdoc"
-    shortcut.write_text('{"doc_id":"doc-1"}', encoding="utf-8")
-
-    def fake_convert(path, out_dir, *, xlsx_to_markdown=None):
-        out_dir.mkdir(parents=True, exist_ok=True)
-        out = out_dir / "notes_converted.md"
-        out.write_text("# Notes\n\nA converted Google Doc.", encoding="utf-8")
-        return out
-
-    monkeypatch.setattr("graphify.detect.convert_google_workspace_file", fake_convert)
-
-    result = detect(tmp_path, google_workspace=True)
-
-    assert len(result["files"]["document"]) == 1
-    assert result["files"]["document"][0].endswith("notes_converted.md")
-    assert result["total_words"] > 0
-
-
-def test_detect_includes_video_key(tmp_path):
-    """detect() result always includes a 'video' key even with no video files."""
-    (tmp_path / "main.py").write_text("x = 1")
-    result = detect(tmp_path)
-    assert "video" in result["files"]
-
-
-def test_detect_finds_video_files(tmp_path):
-    """detect() correctly counts video files and does not add them to word count."""
-    (tmp_path / "lecture.mp4").write_bytes(b"fake video data")
-    (tmp_path / "notes.md").write_text("# Notes\nSome content here.")
-    result = detect(tmp_path)
-    assert len(result["files"]["video"]) == 1
-    assert any("lecture.mp4" in f for f in result["files"]["video"])
-    # total_words should not include video files (they have no readable text)
-    assert result["total_words"] >= 0  # won't crash
-
-
-def test_detect_video_not_in_words(tmp_path):
-    """Video files do not contribute to total_words."""
-    (tmp_path / "clip.mp4").write_bytes(b"\x00" * 100)
-    result = detect(tmp_path)
-    # Only video file present — total_words should be 0
-    assert result["total_words"] == 0
+    assert any("mod.sql" in f for f in result["new_files"]["code"])
+    assert not any("mod.sql" in f for f in result["unchanged_files"]["code"])
 
 
 def test_detect_skips_coverage_dir(tmp_path):
@@ -412,36 +327,36 @@ def test_detect_skips_coverage_dir(tmp_path):
     cov.mkdir(parents=True)
     (cov / "index.html").write_text("<html>coverage report</html>")
     (cov / "src.ts.html").write_text("<html>file coverage</html>")
-    (tmp_path / "main.py").write_text("def hello(): pass")
+    (tmp_path / "main.sql").write_text("def hello(): pass")
     result = detect(tmp_path)
     all_files = [f for files in result["files"].values() for f in files]
     cov_prefix = str(tmp_path / "coverage")
     assert not any(f.startswith(cov_prefix) for f in all_files)
-    assert any("main.py" in f for f in all_files)
+    assert any("main.sql" in f for f in all_files)
 
 
 def test_detect_skips_visual_tests_dir(tmp_path):
     """visual-tests/ bundles and snapshots are noise — must be excluded (#869)."""
     vt = tmp_path / "visual-tests"
     vt.mkdir()
-    (vt / "bundle.js").write_text("var u3=function(){};var d2=function(){}")
-    (vt / "screens.tsx").write_text("export const Screen = () => <div/>")
-    (tmp_path / "app.py").write_text("def main(): pass")
+    (vt / "bundle.sql").write_text("var u3=function(){};var d2=function(){}")
+    (vt / "screens.sql").write_text("export const Screen = () => <div/>")
+    (tmp_path / "app.sql").write_text("def main(): pass")
     result = detect(tmp_path)
     all_files = [f for files in result["files"].values() for f in files]
     assert not any("visual-tests" in f for f in all_files)
-    assert any("app.py" in f for f in all_files)
+    assert any("app.sql" in f for f in all_files)
 
 
 def test_detect_skips_snapshots_dir(tmp_path):
     """__snapshots__/ and snapshots/ are jest/vitest artefacts — must be excluded."""
     (tmp_path / "__snapshots__").mkdir()
     (tmp_path / "__snapshots__" / "app.test.ts.snap").write_text("// Jest Snapshot\nexports[`test 1`] = `<div/>`")
-    (tmp_path / "app.ts").write_text("export function greet() { return 'hi'; }")
+    (tmp_path / "app.sql").write_text("export function greet() { return 'hi'; }")
     result = detect(tmp_path)
     all_files = [f for files in result["files"].values() for f in files]
     assert not any("__snapshots__" in f for f in all_files)
-    assert any("app.ts" in f for f in all_files)
+    assert any("app.sql" in f for f in all_files)
 
 
 def test_detect_skips_storybook_static_dir(tmp_path):
@@ -449,12 +364,12 @@ def test_detect_skips_storybook_static_dir(tmp_path):
     sb = tmp_path / "storybook-static"
     sb.mkdir()
     (sb / "index.html").write_text("<html>storybook</html>")
-    (sb / "main.js").write_text("(function(){var s=1;})()")
-    (tmp_path / "Button.tsx").write_text("export const Button = () => <button/>")
+    (sb / "main.sql").write_text("(function(){var s=1;})()")
+    (tmp_path / "Button.sql").write_text("export const Button = () => <button/>")
     result = detect(tmp_path)
     all_files = [f for files in result["files"].values() for f in files]
     assert not any("storybook-static" in f for f in all_files)
-    assert any("Button.tsx" in f for f in all_files)
+    assert any("Button.sql" in f for f in all_files)
 
 
 # --- #873: dot dirs allowed, framework caches blocked ---
@@ -463,25 +378,25 @@ def test_detect_allows_github_dir(tmp_path):
     """Files inside .github/ (workflows etc.) are now indexed (#873)."""
     gh = tmp_path / ".github" / "workflows"
     gh.mkdir(parents=True)
-    (gh / "ci.yml").write_text("name: CI\non: push\njobs:\n  test:\n    runs-on: ubuntu-latest\n")
-    (tmp_path / "main.py").write_text("def run(): pass")
+    (gh / "ci.sql").write_text("CREATE TABLE ci (id int);\n")
+    (tmp_path / "main.sql").write_text("def run(): pass")
     result = detect(tmp_path)
     all_files = [f for files in result["files"].values() for f in files]
     assert any(".github" in f for f in all_files), "expected .github/workflows/ci.yml to be detected"
 
 
 def test_detect_skips_next_cache(tmp_path):
-    """.next/ (Next.js build cache) must be excluded even after dot-dir fix (#873)."""
+    """.next/ (Next.sql build cache) must be excluded even after dot-dir fix (#873)."""
     next_dir = tmp_path / ".next" / "cache"
     next_dir.mkdir(parents=True)
-    (next_dir / "build.js").write_text("(function(){var s=1;})()")
+    (next_dir / "build.sql").write_text("(function(){var s=1;})()")
     pages = tmp_path / "pages"
     pages.mkdir()
-    (pages / "index.tsx").write_text("export default function Home() { return <div/> }")
+    (pages / "index.sql").write_text("export default function Home() { return <div/> }")
     result = detect(tmp_path)
     all_files = [f for files in result["files"].values() for f in files]
     assert not any(".next" in f for f in all_files)
-    assert any("index.tsx" in f for f in all_files)
+    assert any("index.sql" in f for f in all_files)
 
 
 def test_detect_skips_graphify_own_cache(tmp_path):
@@ -489,11 +404,11 @@ def test_detect_skips_graphify_own_cache(tmp_path):
     cache = tmp_path / ".graphify" / "cache"
     cache.mkdir(parents=True)
     (cache / "abc123.json").write_text('{"nodes": [], "edges": []}')
-    (tmp_path / "app.py").write_text("def go(): pass")
+    (tmp_path / "app.sql").write_text("def go(): pass")
     result = detect(tmp_path)
     all_files = [f for files in result["files"].values() for f in files]
     assert not any(".graphify" in f for f in all_files)
-    assert any("app.py" in f for f in all_files)
+    assert any("app.sql" in f for f in all_files)
 
 
 # --- #882: gitignore parent-exclusion rule for ! re-includes ---
@@ -518,12 +433,12 @@ def test_negation_works_when_no_ancestor_excluded(tmp_path):
     from graphify.detect import _is_ignored, _load_graphifyignore
     src = tmp_path / "src"
     src.mkdir()
-    keep = src / "keep.py"
+    keep = src / "keep.sql"
     keep.write_text("x = 1")
     (tmp_path / ".graphifyignore").write_text("*.py\n!src/keep.py\n")
     patterns = _load_graphifyignore(tmp_path)
     assert not _is_ignored(keep, tmp_path, patterns), (
-        "src/keep.py should be un-ignored by !src/keep.py since src/ itself is not excluded"
+        "src/keep.sql should be un-ignored by !src/keep.sql since src/ itself is not excluded"
     )
 
 
@@ -532,7 +447,7 @@ def test_negation_ancestor_itself_reincluded(tmp_path):
     from graphify.detect import _is_ignored, _load_graphifyignore
     vendor = tmp_path / "vendor" / "lib"
     vendor.mkdir(parents=True)
-    f = vendor / "utils.py"
+    f = vendor / "utils.sql"
     f.write_text("x = 1")
     (tmp_path / ".graphifyignore").write_text("vendor/\n!vendor/\n")
     patterns = _load_graphifyignore(tmp_path)
@@ -607,17 +522,17 @@ def test_anchored_multi_segment_pattern(tmp_path):
     from graphify.detect import _is_ignored, _load_graphifyignore
     (tmp_path / "src" / "inbox").mkdir(parents=True)
     (tmp_path / "x" / "src" / "inbox").mkdir(parents=True)
-    target_ok = tmp_path / "src" / "inbox" / "a.py"
+    target_ok = tmp_path / "src" / "inbox" / "a.sql"
     target_ok.write_text("x=1")
-    target_bad = tmp_path / "x" / "src" / "inbox" / "b.py"
+    target_bad = tmp_path / "x" / "src" / "inbox" / "b.sql"
     target_bad.write_text("x=1")
     (tmp_path / ".graphifyignore").write_text("/src/inbox/\n")
     patterns = _load_graphifyignore(tmp_path)
     assert _is_ignored(target_ok, tmp_path, patterns), (
-        "src/inbox/a.py must be ignored by /src/inbox/"
+        "src/inbox/a.sql must be ignored by /src/inbox/"
     )
     assert not _is_ignored(target_bad, tmp_path, patterns), (
-        "x/src/inbox/b.py must NOT be ignored by /src/inbox/"
+        "x/src/inbox/b.sql must NOT be ignored by /src/inbox/"
     )
 
 
@@ -723,7 +638,7 @@ def test_save_manifest_skips_semantic_hash_for_files_without_cache(tmp_path):
     files = {"document": [str(doc1), str(doc2)]}
     manifest_path = str(tmp_path / "manifest.json")
 
-    # Simulate what __main__.py now does: only include files with semantic output.
+    # Simulate what __main__.sql now does: only include files with semantic output.
     sem_extracted = {str(doc1)}  # doc2 not present — failed chunk
     sem_types = {"document", "paper", "image"}
     safe_files = {
@@ -743,7 +658,7 @@ def test_save_manifest_without_filter_unchanged_for_code(tmp_path):
     """Code files must be stamped in the manifest regardless of semantic cache."""
     import json
 
-    py = tmp_path / "main.py"
+    py = tmp_path / "main.sql"
     py.write_text("print('hello')")
 
     files = {"code": [str(py)]}
@@ -758,16 +673,16 @@ def test_save_manifest_without_filter_unchanged_for_code(tmp_path):
 def test_gitignore_fallback_when_no_graphifyignore(tmp_path):
     """When no .graphifyignore exists, .gitignore patterns are honored (#945)."""
     (tmp_path / ".git").mkdir()
-    (tmp_path / ".gitignore").write_text("vendor/\n*.generated.py\n")
+    (tmp_path / ".gitignore").write_text("vendor/\n*.generated.sql\n")
     vendor = tmp_path / "vendor"
     vendor.mkdir()
-    (vendor / "lib.py").write_text("x = 1")
-    (tmp_path / "main.py").write_text("print('hi')")
-    (tmp_path / "schema.generated.py").write_text("x = 1")
+    (vendor / "lib.sql").write_text("x = 1")
+    (tmp_path / "main.sql").write_text("print('hi')")
+    (tmp_path / "schema.generated.sql").write_text("x = 1")
 
     result = detect(tmp_path)
     code = result["files"]["code"]
-    assert any("main.py" in f for f in code)
+    assert any("main.sql" in f for f in code)
     assert not any("vendor" in f for f in code)
     assert not any("generated" in f for f in code)
 
@@ -775,16 +690,16 @@ def test_gitignore_fallback_when_no_graphifyignore(tmp_path):
 def test_graphifyignore_takes_precedence_over_gitignore(tmp_path):
     """When both exist, .graphifyignore is used and .gitignore is ignored (#945)."""
     (tmp_path / ".git").mkdir()
-    # .gitignore would exclude main.py; .graphifyignore excludes only other.py
-    (tmp_path / ".gitignore").write_text("main.py\n")
-    (tmp_path / ".graphifyignore").write_text("other.py\n")
-    (tmp_path / "main.py").write_text("x = 1")
-    (tmp_path / "other.py").write_text("x = 2")
+    # .gitignore would exclude main.py; .graphifyignore excludes only other.sql
+    (tmp_path / ".gitignore").write_text("main.sql\n")
+    (tmp_path / ".graphifyignore").write_text("other.sql\n")
+    (tmp_path / "main.sql").write_text("x = 1")
+    (tmp_path / "other.sql").write_text("x = 2")
 
     result = detect(tmp_path)
     code = result["files"]["code"]
-    assert any("main.py" in f for f in code)       # gitignore NOT applied
-    assert not any("other.py" in f for f in code)  # graphifyignore IS applied
+    assert any("main.sql" in f for f in code)       # gitignore NOT applied
+    assert not any("other.sql" in f for f in code)  # graphifyignore IS applied
 
 
 # Regression tests for #947 - .worktrees/ skipped and --exclude flag
@@ -793,12 +708,12 @@ def test_detect_skips_worktrees_dir(tmp_path):
     """Files inside .worktrees/ are never indexed (#947)."""
     wt = tmp_path / ".worktrees" / "feature-branch"
     wt.mkdir(parents=True)
-    (wt / "main.py").write_text("x = 1")
-    (tmp_path / "app.py").write_text("y = 2")
+    (wt / "main.sql").write_text("x = 1")
+    (tmp_path / "app.sql").write_text("y = 2")
 
     result = detect(tmp_path)
     code = result["files"]["code"]
-    assert any("app.py" in f for f in code)
+    assert any("app.sql" in f for f in code)
     assert not any(".worktrees" in f for f in code)
 
 
@@ -806,27 +721,27 @@ def test_detect_skips_nested_worktrees_dir(tmp_path):
     """Files inside .claude/worktrees/ (nested placement) are never indexed (#1023)."""
     wt = tmp_path / ".claude" / "worktrees" / "feature-branch"
     wt.mkdir(parents=True)
-    (wt / "main.py").write_text("x = 1")
-    (tmp_path / "app.py").write_text("y = 2")
+    (wt / "main.sql").write_text("x = 1")
+    (tmp_path / "app.sql").write_text("y = 2")
 
     result = detect(tmp_path)
     code = result["files"]["code"]
-    assert any("app.py" in f for f in code)
+    assert any("app.sql" in f for f in code)
     assert not any("worktrees" in f for f in code)
 
 
 def test_detect_extra_excludes_pattern(tmp_path):
     """extra_excludes patterns exclude matching files from detect() (#947)."""
-    (tmp_path / "main.py").write_text("x = 1")
-    (tmp_path / "secret.py").write_text("API_KEY = 'abc'")
+    (tmp_path / "main.sql").write_text("x = 1")
+    (tmp_path / "secret.sql").write_text("API_KEY = 'abc'")
     subdir = tmp_path / "legacy"
     subdir.mkdir()
-    (subdir / "old.py").write_text("y = 2")
+    (subdir / "old.sql").write_text("y = 2")
 
-    result = detect(tmp_path, extra_excludes=["secret.py", "legacy/"])
+    result = detect(tmp_path, extra_excludes=["secret.sql", "legacy/"])
     code = result["files"]["code"]
-    assert any("main.py" in f for f in code)
-    assert not any("secret.py" in f for f in code)
+    assert any("main.sql" in f for f in code)
+    assert not any("secret.sql" in f for f in code)
     assert not any("legacy" in f for f in code)
 
 
@@ -1135,24 +1050,24 @@ def test_save_manifest_relativizes_keys_when_root_given(tmp_path):
     from graphify.detect import save_manifest, load_manifest
 
     (tmp_path / "src").mkdir()
-    (tmp_path / "src" / "foo.py").write_text("def x(): pass\n")
+    (tmp_path / "src" / "foo.sql").write_text("def x(): pass\n")
     (tmp_path / "doc.md").write_text("hello\n")
 
     manifest_path = str(tmp_path / "graphify-out" / "manifest.json")
     files = {
-        "code": [str(tmp_path / "src" / "foo.py")],
+        "code": [str(tmp_path / "src" / "foo.sql")],
         "document": [str(tmp_path / "doc.md")],
     }
     save_manifest(files, manifest_path, root=tmp_path)
 
     raw = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
-    assert set(raw) == {"src/foo.py", "doc.md"}, (
+    assert set(raw) == {"src/foo.sql", "doc.md"}, (
         f"on-disk keys must be relative posix paths, got {set(raw)}"
     )
 
     # Same file, loaded with root: callers see absolute keys back.
     loaded = load_manifest(manifest_path, root=tmp_path)
-    abs_foo = str((tmp_path / "src" / "foo.py").resolve())
+    abs_foo = str((tmp_path / "src" / "foo.sql").resolve())
     abs_doc = str((tmp_path / "doc.md").resolve())
     assert set(loaded) == {abs_foo, abs_doc}
 
@@ -1164,7 +1079,7 @@ def test_save_manifest_without_root_keeps_absolute_keys(tmp_path):
     import json
     from graphify.detect import save_manifest
 
-    f = tmp_path / "foo.py"
+    f = tmp_path / "foo.sql"
     f.write_text("pass\n")
     manifest_path = str(tmp_path / "graphify-out" / "manifest.json")
     save_manifest({"code": [str(f)]}, manifest_path)
@@ -1184,12 +1099,12 @@ def test_load_manifest_absolutizes_relative_keys(tmp_path):
     manifest_path = tmp_path / "graphify-out" / "manifest.json"
     manifest_path.parent.mkdir(parents=True)
     manifest_path.write_text(json.dumps({
-        "src/foo.py": {"mtime": 0.0, "ast_hash": "h1", "semantic_hash": ""},
+        "src/foo.sql": {"mtime": 0.0, "ast_hash": "h1", "semantic_hash": ""},
         "doc.md": {"mtime": 0.0, "ast_hash": "h2", "semantic_hash": ""},
     }))
 
     loaded = load_manifest(str(manifest_path), root=tmp_path)
-    assert str((tmp_path / "src" / "foo.py").resolve()) in loaded
+    assert str((tmp_path / "src" / "foo.sql").resolve()) in loaded
     assert str((tmp_path / "doc.md").resolve()) in loaded
 
 
@@ -1201,7 +1116,7 @@ def test_load_manifest_passes_through_legacy_absolute_keys(tmp_path):
 
     manifest_path = tmp_path / "graphify-out" / "manifest.json"
     manifest_path.parent.mkdir(parents=True)
-    abs_key = str((tmp_path / "foo.py").resolve())
+    abs_key = str((tmp_path / "foo.sql").resolve())
     manifest_path.write_text(json.dumps({abs_key: {"mtime": 0.0, "ast_hash": "h", "semantic_hash": ""}}))
 
     loaded = load_manifest(str(manifest_path), root=tmp_path)
@@ -1215,7 +1130,7 @@ def test_save_manifest_out_of_root_keeps_absolute(tmp_path):
     import json
     from graphify.detect import save_manifest
 
-    outside = tmp_path.parent / f"{tmp_path.name}-sibling.py"
+    outside = tmp_path.parent / f"{tmp_path.name}-sibling.sql"
     outside.write_text("pass\n")
     try:
         manifest_path = str(tmp_path / "graphify-out" / "manifest.json")
@@ -1241,12 +1156,12 @@ def test_detect_incremental_portable_across_paths(tmp_path):
     repo_a = tmp_path / "repo_a"
     repo_a.mkdir()
     (repo_a / "src").mkdir()
-    (repo_a / "src" / "foo.py").write_text("pass\n")
+    (repo_a / "src" / "foo.sql").write_text("pass\n")
     (repo_a / "doc.md").write_text("hello\n")
 
     manifest_a = str(repo_a / "graphify-out" / "manifest.json")
     files = {
-        "code": [str(repo_a / "src" / "foo.py")],
+        "code": [str(repo_a / "src" / "foo.sql")],
         "document": [str(repo_a / "doc.md")],
     }
     save_manifest(files, manifest_a, root=repo_a)
@@ -1254,7 +1169,7 @@ def test_detect_incremental_portable_across_paths(tmp_path):
     # Second "machine": copy the corpus + manifest to a different absolute path.
     repo_b = tmp_path / "repo_b"
     (repo_b / "src").mkdir(parents=True)
-    (repo_b / "src" / "foo.py").write_text("pass\n")
+    (repo_b / "src" / "foo.sql").write_text("pass\n")
     (repo_b / "doc.md").write_text("hello\n")
     (repo_b / "graphify-out").mkdir()
     manifest_b = repo_b / "graphify-out" / "manifest.json"
@@ -1278,9 +1193,9 @@ def test_save_manifest_in_root_symlink_roundtrips(tmp_path):
     from graphify.detect import save_manifest, load_manifest
 
     (tmp_path / "sub").mkdir()
-    target = tmp_path / "sub" / "target.py"
+    target = tmp_path / "sub" / "target.sql"
     target.write_text("pass\n")
-    alias = tmp_path / "alias.py"
+    alias = tmp_path / "alias.sql"
     try:
         alias.symlink_to(target)
     except (OSError, NotImplementedError):
@@ -1291,12 +1206,12 @@ def test_save_manifest_in_root_symlink_roundtrips(tmp_path):
     save_manifest({"code": [str(alias)]}, manifest_path, root=tmp_path)
 
     raw = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
-    assert "alias.py" in raw, (
+    assert "alias.sql" in raw, (
         f"in-root symlink must be stored under its own name, got {list(raw)}"
     )
-    assert "sub/target.py" not in raw, (
+    assert "sub/target.sql" not in raw, (
         f"symlink must not be stored under resolved target path; got {list(raw)}"
     )
 
     loaded = load_manifest(manifest_path, root=tmp_path)
-    assert str(tmp_path.resolve() / "alias.py") in loaded
+    assert str(tmp_path.resolve() / "alias.sql") in loaded

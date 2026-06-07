@@ -252,8 +252,8 @@ def test_export_unknown_format_fails(tmp_path):
 
 
 def test_update_no_cluster_writes_raw_graph(tmp_path):
-    src = tmp_path / "sample.py"
-    src.write_text("def f():\n    return 1\n", encoding="utf-8")
+    src = tmp_path / "sample.sql"
+    src.write_text("CREATE TABLE t (id int);\n", encoding="utf-8")
 
     r = _run(["update", ".", "--no-cluster"], tmp_path)
     assert r.returncode == 0, r.stderr

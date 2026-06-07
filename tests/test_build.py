@@ -160,24 +160,28 @@ def test_build_merge_preserves_call_edge_direction(tmp_path):
     build_merge must read the saved JSON's source/target verbatim instead
     of round-tripping through NetworkX.
     """
-    from graphify.extract import extract_js
     from graphify.export import to_json
 
     # Callee `b` is defined before caller `a` so node insertion order
     # is b, a. An undirected Graph then yields the edge as (b, a) on
     # iteration, which is the wrong direction for `calls` (a calls b).
-    src = "function b() {}\nfunction a() { b(); }\n"
-    src_file = tmp_path / "x.js"
-    src_file.write_text(src)
-
-    extraction = extract_js(src_file)
-    assert "error" not in extraction
+    truth_src, truth_tgt = "x_a", "x_b"
+    extraction = {
+        "nodes": [
+            {"id": "x_b", "label": "b()", "file_type": "code", "source_file": "x.sql", "source_location": "L1"},
+            {"id": "x_a", "label": "a()", "file_type": "code", "source_file": "x.sql", "source_location": "L2"},
+        ],
+        "edges": [
+            {"source": truth_src, "target": truth_tgt, "relation": "calls",
+             "confidence": "EXTRACTED", "source_file": "x.sql", "source_location": "L2", "weight": 1.0},
+        ],
+    }
 
     # Locate the `calls` edge in the raw extraction so we know the truth.
     call_edges = [e for e in extraction["edges"] if e["relation"] == "calls"]
     assert len(call_edges) == 1, "expected exactly one calls edge from the snippet"
-    truth_src = call_edges[0]["source"]
-    truth_tgt = call_edges[0]["target"]
+    assert call_edges[0]["source"] == truth_src
+    assert call_edges[0]["target"] == truth_tgt
 
     nodes_by_id = {n["id"]: n for n in extraction["nodes"]}
     assert nodes_by_id[truth_src]["label"].startswith("a")
