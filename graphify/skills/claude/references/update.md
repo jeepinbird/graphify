@@ -53,7 +53,7 @@ import json
 from pathlib import Path
 
 result = json.loads(open('graphify-out/.graphify_incremental.json', encoding='utf-8').read()) if Path('graphify-out/.graphify_incremental.json').exists() else {}
-code_exts = {'.sql'}
+code_exts = {'.sql', '.py', '.go'}
 new_files = result.get('new_files', {})
 all_changed = [f for files in new_files.values() for f in files]
 code_only = all(Path(f).suffix.lower() in code_exts for f in all_changed)
@@ -61,7 +61,7 @@ print('code_only:', code_only)
 "
 ```
 
-If `code_only` is True: print `[graphify update] SQL-only changes detected - skipping semantic extraction (no LLM needed)`, run only Step 3A (AST) on the changed files, skip Step 3B entirely (no subagents), then go straight to merge and Steps 4–8.
+If `code_only` is True: print `[graphify update] Code-only changes detected - skipping semantic extraction (no LLM needed)`, run only Step 3A (AST) on the changed files, skip Step 3B entirely (no subagents), then go straight to merge and Steps 4–8.
 
 If `code_only` is False (any changed file is a Markdown doc): run the full Steps 3A–3C pipeline as normal.
 

@@ -805,9 +805,9 @@ def watch(watch_path: Path, debounce: float = 3.0) -> None:
     """
     Watch watch_path for new or modified files and auto-update the graph.
 
-    For SQL-only changes: re-runs AST extraction + rebuild immediately (no LLM).
-    For Markdown doc changes: writes a needs_update flag and notifies the user
-    to run /graphify --update (LLM extraction required).
+    For code-only changes (Python/Go/SQL): re-runs AST extraction + rebuild
+    immediately (no LLM). For Markdown doc changes: writes a needs_update flag
+    and notifies the user to run /graphify --update (LLM extraction required).
 
     debounce: seconds to wait after the last change before triggering (avoids
     running on every keystroke when many files are saved at once).

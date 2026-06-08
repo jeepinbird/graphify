@@ -2382,12 +2382,12 @@ def main() -> None:
         semantic_files = doc_files + paper_files + image_files
         if incremental_mode:
             print(
-                f"[graphify extract] {len(code_files)} SQL, {len(doc_files)} docs changed; "
+                f"[graphify extract] {len(code_files)} code, {len(doc_files)} docs changed; "
                 f"{unchanged_total} unchanged; {len(deleted_files)} deleted"
             )
         else:
             print(
-                f"[graphify extract] found {len(code_files)} SQL, {len(doc_files)} docs"
+                f"[graphify extract] found {len(code_files)} code, {len(doc_files)} docs"
             )
 
         # Resolve the LLM backend only now that we know whether the corpus
@@ -2424,7 +2424,7 @@ def main() -> None:
                     "error: no LLM API key found (" + "; ".join(reasons) + "). "
                     "Set GEMINI_API_KEY or GOOGLE_API_KEY (gemini), MOONSHOT_API_KEY "
                     "(kimi), ANTHROPIC_API_KEY (claude), OPENAI_API_KEY (openai), "
-                    "DEEPSEEK_API_KEY (deepseek), or pass --backend. A SQL-only "
+                    "DEEPSEEK_API_KEY (deepseek), or pass --backend. A code-only "
                     "corpus needs no key.",
                     file=sys.stderr,
                 )

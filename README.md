@@ -1,11 +1,11 @@
-# graphify (Markdown + SQL edition)
+# graphify (Python · Go · SQL · Markdown edition)
 
-Turn a folder of **Markdown / knowledge-base notes** and **SQL files** into a
-queryable **relationship graph**.
+Turn a folder of **Python**, **Go**, **SQL**, and **Markdown / knowledge-base
+notes** into a queryable **relationship graph**.
 
 This is a slimmed fork of [graphify](https://github.com/safishamsi/graphify),
-trimmed down to do one thing well: graph the relationships inside a knowledge
-base and a SQL schema. All other language extractors, source ingesters
+trimmed down to graph the relationships inside Python and Go code, a SQL schema,
+and a knowledge base. The other ~35 language extractors, source ingesters
 (URLs, GitHub PRs, Google Workspace, video/audio, PDF/Office), and the
 multi-host installers have been removed. It installs as a single
 [Claude Code](https://claude.com/claude-code) skill.
@@ -14,13 +14,15 @@ multi-host installers have been removed. It installs as a single
 
 | Files | Nodes | Edges |
 |-------|-------|-------|
-| `.md` / `.mdx` / `.qmd` | the document, each heading | `contains` (file → heading, heading → sub-heading) |
+| `.py` | modules, classes, functions, methods | `contains`, `method`, `calls`, `inherits`, `imports` (incl. cross-file resolution) |
+| `.go` | packages, structs, interfaces, functions, methods | `contains`, `method`, `calls`, receiver-type links |
 | `.sql` | tables, views, functions, procedures, triggers | `references` (foreign keys), `reads_from` (FROM/JOIN), `triggers` |
+| `.md` / `.mdx` / `.qmd` | the document, each heading | `contains` (file → heading, heading → sub-heading) |
 
-SQL extraction uses `tree-sitter-sql` and needs no API key. Markdown headings
-are parsed structurally (also no key). Richer, *semantic* relationships across
-your notes are produced by the optional LLM extraction pass (the Claude Code
-skill drives this) — see **Semantic extraction** below.
+Code (Python, Go, SQL) and Markdown headings are parsed structurally via
+tree-sitter and need no API key. Richer, *semantic* relationships across your
+notes are produced by the optional LLM extraction pass (the Claude Code skill
+drives this) — see **Semantic extraction** below.
 
 ## Install
 

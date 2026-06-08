@@ -1,6 +1,6 @@
 ---
 name: graphify
-description: "Use for any question about a knowledge base or SQL schema — its structure, relationships, or content — especially when graphify-out/ exists, where the question should be treated as a graphify query first. Turns a folder of Markdown/knowledge-base notes and SQL files into a persistent knowledge graph with god nodes, community detection, and query/path/explain tools."
+description: "Use for any question about a codebase (Python/Go), a SQL schema, or a knowledge base — its structure, relationships, or content — especially when graphify-out/ exists, where the question should be treated as a graphify query first. Turns a folder of Python, Go, SQL, and Markdown/knowledge-base files into a persistent knowledge graph with god nodes, community detection, and query/path/explain tools."
 ---
 
 # /graphify
@@ -38,7 +38,7 @@ Turn a folder of Markdown/knowledge-base notes and SQL schemas into a navigable 
 
 ## What graphify is for
 
-Drop a folder of Markdown/knowledge-base notes and SQL files into graphify and get a queryable knowledge graph. Persistent across sessions, honest audit trail (EXTRACTED/INFERRED/AMBIGUOUS), community detection surfaces cross-document connections you wouldn't think to ask about.
+Drop a folder of Python, Go, SQL, and Markdown/knowledge-base files into graphify and get a queryable knowledge graph. Persistent across sessions, honest audit trail (EXTRACTED/INFERRED/AMBIGUOUS), community detection surfaces cross-file connections you wouldn't think to ask about.
 
 ## What You Must Do When Invoked
 
@@ -114,7 +114,7 @@ Replace INPUT_PATH with the actual path the user provided. Do NOT cat or print t
 
 ```
 Corpus: X files · ~Y words
-  code:     N files (.sql)
+  code:     N files (.py .go .sql)
   docs:     N files (.md .mdx .qmd)
 ```
 
@@ -177,7 +177,7 @@ else:
 
 #### Part B - Semantic extraction (parallel subagents)
 
-**Fast path:** If detection found zero docs (SQL-only corpus), skip Part B entirely and go straight to Part C. AST handles SQL - there is nothing for semantic subagents to do.
+**Fast path:** If detection found zero docs (code-only corpus), skip Part B entirely and go straight to Part C. AST handles Python/Go/SQL - there is nothing for semantic subagents to do.
 
 **MANDATORY: You MUST use the Agent tool here. Reading files yourself one-by-one is forbidden - it is 5-10x slower. If you do not use the Agent tool you are doing this wrong.**
 
@@ -239,7 +239,7 @@ PROJECT_ROOT=$(cat graphify-out/.graphify_root)
 
 Subagent prompt template:
 
-See `references/extraction-spec.md` for the exact subagent prompt (JSON schema, node-ID rules, confidence rubric, frontmatter, and hyperedge rules). Load it only here, only when at least one chunk holds a doc; a SQL-only corpus has skipped Part B and never reads it. Pass each subagent that prompt verbatim with FILE_LIST, CHUNK_NUM, TOTAL_CHUNKS, DEEP_MODE, and CHUNK_PATH substituted, and have it write the result to CHUNK_PATH.
+See `references/extraction-spec.md` for the exact subagent prompt (JSON schema, node-ID rules, confidence rubric, frontmatter, and hyperedge rules). Load it only here, only when at least one chunk holds a doc; a code-only corpus has skipped Part B and never reads it. Pass each subagent that prompt verbatim with FILE_LIST, CHUNK_NUM, TOTAL_CHUNKS, DEEP_MODE, and CHUNK_PATH substituted, and have it write the result to CHUNK_PATH.
 
 **Step B3 - Collect, cache, and merge**
 
