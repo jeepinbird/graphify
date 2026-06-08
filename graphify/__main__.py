@@ -413,130 +413,6 @@ _PLATFORM_CONFIG: dict[str, dict] = {
         "claude_md": True,
         "skill_refs": "claude",
     },
-    "codex": {
-        "skill_file": "skill-codex.md",
-        "skill_dst": Path(".codex") / "skills" / "graphify" / "SKILL.md",
-        "claude_md": False,
-        "skill_refs": "codex",
-    },
-    "opencode": {
-        "skill_file": "skill-opencode.md",
-        "skill_dst": Path(".config") / "opencode" / "skills" / "graphify" / "SKILL.md",
-        "claude_md": False,
-        "skill_refs": "opencode",
-    },
-    "kilo": {
-        "skill_file": "skill-kilo.md",
-        "skill_dst": Path(".config") / "kilo" / "skills" / "graphify" / "SKILL.md",
-        "claude_md": False,
-        "skill_refs": "kilo",
-    },
-    "aider": {
-        # Monolith: aider ships the full SKILL.md inline, no references/ sidecar.
-        "skill_file": "skill-aider.md",
-        "skill_dst": Path(".aider") / "graphify" / "SKILL.md",
-        "claude_md": False,
-    },
-    "copilot": {
-        "skill_file": "skill-copilot.md",
-        "skill_dst": Path(".copilot") / "skills" / "graphify" / "SKILL.md",
-        "claude_md": False,
-        "skill_refs": "copilot",
-    },
-    "claw": {
-        "skill_file": "skill-claw.md",
-        "skill_dst": Path(".openclaw") / "skills" / "graphify" / "SKILL.md",
-        "claude_md": False,
-        "skill_refs": "claw",
-    },
-    "droid": {
-        "skill_file": "skill-droid.md",
-        "skill_dst": Path(".factory") / "skills" / "graphify" / "SKILL.md",
-        "claude_md": False,
-        "skill_refs": "droid",
-    },
-    "trae": {
-        "skill_file": "skill-trae.md",
-        "skill_dst": Path(".trae") / "skills" / "graphify" / "SKILL.md",
-        "claude_md": False,
-        "skill_refs": "trae",
-    },
-    "trae-cn": {
-        # Reuses trae's split bundle (same skill body + references).
-        "skill_file": "skill-trae.md",
-        "skill_dst": Path(".trae-cn") / "skills" / "graphify" / "SKILL.md",
-        "claude_md": False,
-        "skill_refs": "trae",
-    },
-    "hermes": {
-        # Reuses claw's split bundle.
-        "skill_file": "skill-claw.md",
-        "skill_dst": Path(".hermes") / "skills" / "graphify" / "SKILL.md",
-        "claude_md": False,
-        "skill_refs": "claw",
-    },
-    "kiro": {
-        "skill_file": "skill-kiro.md",
-        "skill_dst": Path(".kiro") / "skills" / "graphify" / "SKILL.md",
-        "claude_md": False,
-        "skill_refs": "kiro",
-    },
-    "pi": {
-        "skill_file": "skill-pi.md",
-        "skill_dst": Path(".pi") / "agent" / "skills" / "graphify" / "SKILL.md",
-        "claude_md": False,
-        "skill_refs": "pi",
-    },
-    "codebuddy": {
-        # Reuses claude's split bundle (shares skill.md).
-        "skill_file": "skill.md",
-        "skill_dst": Path(".codebuddy") / "skills" / "graphify" / "SKILL.md",
-        "claude_md": False,
-        "skill_refs": "claude",
-    },
-    "antigravity": {
-        # Rides claude's split bundle (shares skill.md).
-        "skill_file": "skill.md",
-        "skill_dst": Path(".agents") / "skills" / "graphify" / "SKILL.md",
-        "claude_md": False,
-        "skill_refs": "claude",
-    },
-    "antigravity-windows": {
-        # Rides windows' split bundle.
-        "skill_file": "skill-windows.md",
-        "skill_dst": Path(".agents") / "skills" / "graphify" / "SKILL.md",
-        "claude_md": False,
-        "skill_refs": "windows",
-    },
-    "windows": {
-        "skill_file": "skill-windows.md",
-        "skill_dst": Path(".claude") / "skills" / "graphify" / "SKILL.md",
-        "claude_md": True,
-        "skill_refs": "windows",
-    },
-    "kimi": {
-        # Reuses claude's split bundle (shares skill.md).
-        "skill_file": "skill.md",
-        "skill_dst": Path(".kimi") / "skills" / "graphify" / "SKILL.md",
-        "claude_md": False,
-        "skill_refs": "claude",
-    },
-    "amp": {
-        # Amp searches .agents/skills (project) and ~/.config/agents/skills (user),
-        # not .amp/skills. The user-scope path is set in _platform_skill_destination.
-        "skill_file": "skill-amp.md",
-        "skill_dst": Path(".agents") / "skills" / "graphify" / "SKILL.md",
-        "claude_md": False,
-        "skill_refs": "amp",
-    },
-    "devin": {
-        # Monolith: devin ships the full SKILL.md inline, no references/ sidecar.
-        "skill_file": "skill-devin.md",
-        # User scope: ~/.config/devin/skills/graphify/SKILL.md
-        # Project scope: .devin/skills/graphify/SKILL.md (overridden in _platform_skill_destination)
-        "skill_dst": Path(".config") / "devin" / "skills" / "graphify" / "SKILL.md",
-        "claude_md": False,
-    },
 }
 
 
@@ -2094,7 +1970,7 @@ def main() -> None:
         print("Usage: graphify <command>")
         print()
         print("Commands:")
-        print("  install [--platform P]  copy skill to platform config dir (claude|windows|codebuddy|codex|opencode|aider|amp|claw|droid|trae|trae-cn|gemini|cursor|antigravity|hermes|kiro|pi|devin)")
+        print("  install                 copy the graphify skill into .claude/skills/")
         print("  uninstall               remove graphify from all detected platforms in one shot")
         print("    --purge                 also delete graphify-out/ directory")
         print("  path \"A\" \"B\"            shortest path between two nodes in graph.json")
@@ -2117,12 +1993,8 @@ def main() -> None:
         print("    --out <path>            output path (default: graphify-out/merged-graph.json)")
         print("    --branch <branch>       checkout a specific branch (default: repo default)")
         print("    --out <dir>             clone to a custom directory (default: ~/.graphify/repos/<owner>/<repo>)")
-        print("  add <url>               fetch a URL and save it to ./raw, then update the graph")
-        print("    --author \"Name\"         tag the author of the content")
-        print("    --contributor \"Name\"    tag who added it to the corpus")
-        print("    --dir <path>            target directory (default: ./raw)")
-        print("  watch <path>            watch a folder and rebuild the graph on code changes")
-        print("  update <path>           re-extract code files and update the graph (no LLM needed)")
+        print("  watch <path>            watch a folder and rebuild the graph on changes")
+        print("  update <path>           re-extract SQL files and update the graph (no LLM needed)")
         print("    --force                 overwrite graph.json even if the rebuild has fewer nodes")
         print("                            (also: GRAPHIFY_FORCE=1 env var; use after refactors that delete code)")
         print("    --no-cluster            skip clustering, write raw extraction only")
@@ -2169,7 +2041,6 @@ def main() -> None:
         print("    --out DIR               output dir (default: <path>); writes <DIR>/graphify-out/")
         print("    --google-workspace      export .gdoc/.gsheet/.gslides shortcuts via gws before extraction")
         print("    --no-cluster            skip clustering, write raw extraction only")
-        print("    --postgres DSN          extract schema from a live PostgreSQL database")
         print("                            maps tables, views, functions + FK relationships;")
         print("                            column-level detail is not represented in the graph")
         print("    --global                also merge the resulting graph into the global graph")
@@ -2356,154 +2227,6 @@ def main() -> None:
         else:
             print("Usage: graphify claude [install|uninstall]", file=sys.stderr)
             sys.exit(1)
-    elif cmd == "codebuddy":
-        subcmd = sys.argv[2] if len(sys.argv) > 2 else ""
-        if subcmd == "install":
-            codebuddy_install()
-        elif subcmd == "uninstall":
-            codebuddy_uninstall()
-        else:
-            print("Usage: graphify codebuddy [install|uninstall]", file=sys.stderr)
-            sys.exit(1)
-    elif cmd == "gemini":
-        subcmd = sys.argv[2] if len(sys.argv) > 2 else ""
-        if subcmd == "install":
-            gemini_install(project=("--project" in sys.argv[3:]))
-        elif subcmd == "uninstall":
-            gemini_uninstall(project=("--project" in sys.argv[3:]))
-        else:
-            print("Usage: graphify gemini [install|uninstall]", file=sys.stderr)
-            sys.exit(1)
-    elif cmd == "cursor":
-        subcmd = sys.argv[2] if len(sys.argv) > 2 else ""
-        if subcmd == "install":
-            _cursor_install(Path("."))
-        elif subcmd == "uninstall":
-            _cursor_uninstall(Path("."))
-        else:
-            print("Usage: graphify cursor [install|uninstall]", file=sys.stderr)
-            sys.exit(1)
-    elif cmd == "vscode":
-        subcmd = sys.argv[2] if len(sys.argv) > 2 else ""
-        if subcmd == "install":
-            vscode_install()
-        elif subcmd == "uninstall":
-            vscode_uninstall()
-        else:
-            print("Usage: graphify vscode [install|uninstall]", file=sys.stderr)
-            sys.exit(1)
-    elif cmd == "copilot":
-        subcmd = sys.argv[2] if len(sys.argv) > 2 else ""
-        if subcmd == "install":
-            if "--project" in sys.argv[3:]:
-                _project_install("copilot", Path("."))
-            else:
-                install(platform="copilot")
-        elif subcmd == "uninstall":
-            if "--project" in sys.argv[3:]:
-                _project_uninstall("copilot", Path("."))
-            else:
-                removed = _remove_skill_file("copilot")
-                print("skill removed" if removed else "nothing to remove")
-        else:
-            print("Usage: graphify copilot [install|uninstall]", file=sys.stderr)
-            sys.exit(1)
-    elif cmd == "kilo":
-        subcmd = sys.argv[2] if len(sys.argv) > 2 else ""
-        if subcmd == "install":
-            _kilo_install(Path("."))
-        elif subcmd == "uninstall":
-            _kilo_uninstall(Path("."))
-        else:
-            print("Usage: graphify kilo [install|uninstall]", file=sys.stderr)
-            sys.exit(1)
-    elif cmd == "kiro":
-        subcmd = sys.argv[2] if len(sys.argv) > 2 else ""
-        if subcmd == "install":
-            _kiro_install(Path("."))
-        elif subcmd == "uninstall":
-            _kiro_uninstall(Path("."))
-        else:
-            print("Usage: graphify kiro [install|uninstall]", file=sys.stderr)
-            sys.exit(1)
-    elif cmd == "devin":
-        subcmd = sys.argv[2] if len(sys.argv) > 2 else ""
-        if subcmd == "install":
-            if "--project" in sys.argv[3:]:
-                _project_install("devin", Path("."))
-            else:
-                install(platform="devin")
-        elif subcmd == "uninstall":
-            if "--project" in sys.argv[3:]:
-                _project_uninstall("devin", Path("."))
-            else:
-                removed = _remove_skill_file("devin")
-                print("skill removed" if removed else "nothing to remove")
-        else:
-            print("Usage: graphify devin [install|uninstall]", file=sys.stderr)
-            sys.exit(1)
-    elif cmd == "pi":
-        subcmd = sys.argv[2] if len(sys.argv) > 2 else ""
-        if subcmd == "install":
-            if "--project" in sys.argv[3:]:
-                _project_install("pi", Path("."))
-            else:
-                install("pi")
-        elif subcmd == "uninstall":
-            if "--project" in sys.argv[3:]:
-                _project_uninstall("pi", Path("."))
-            else:
-                _remove_skill_file("pi")
-        else:
-            print("Usage: graphify pi [install|uninstall]", file=sys.stderr)
-            sys.exit(1)
-    elif cmd == "amp":
-        subcmd = sys.argv[2] if len(sys.argv) > 2 else ""
-        if subcmd == "install":
-            if "--project" in sys.argv[3:]:
-                _project_install("amp", Path("."))
-            else:
-                _amp_install(Path("."))
-        elif subcmd == "uninstall":
-            if "--project" in sys.argv[3:]:
-                _project_uninstall("amp", Path("."))
-            else:
-                _amp_uninstall(Path("."))
-        else:
-            print("Usage: graphify amp [install|uninstall]", file=sys.stderr)
-            sys.exit(1)
-    elif cmd in ("aider", "codex", "opencode", "claw", "droid", "trae", "trae-cn", "hermes"):
-        subcmd = sys.argv[2] if len(sys.argv) > 2 else ""
-        if subcmd == "install":
-            if "--project" in sys.argv[3:]:
-                _project_install(cmd, Path("."))
-            else:
-                _agents_install(Path("."), cmd)
-        elif subcmd == "uninstall":
-            if "--project" in sys.argv[3:]:
-                _project_uninstall(cmd, Path("."))
-            else:
-                _agents_uninstall(Path("."), platform=cmd)
-                if cmd == "codex":
-                    _uninstall_codex_hook(Path("."))
-        else:
-            print(f"Usage: graphify {cmd} [install|uninstall]", file=sys.stderr)
-            sys.exit(1)
-    elif cmd == "antigravity":
-        subcmd = sys.argv[2] if len(sys.argv) > 2 else ""
-        if subcmd == "install":
-            if "--project" in sys.argv[3:]:
-                _project_install("antigravity", Path("."))
-            else:
-                _antigravity_install(Path("."))
-        elif subcmd == "uninstall":
-            if "--project" in sys.argv[3:]:
-                _project_uninstall("antigravity", Path("."))
-            else:
-                _antigravity_uninstall(Path("."))
-        else:
-            print("Usage: graphify antigravity [install|uninstall]", file=sys.stderr)
-            sys.exit(1)
     elif cmd == "provider":
         from graphify.llm import _custom_providers_path, BACKENDS
         import json as _json
@@ -2621,9 +2344,6 @@ def main() -> None:
             print("Usage: graphify provider [add|list|show|remove]", file=sys.stderr)
             if subcmd:
                 sys.exit(1)
-    elif cmd == "prs":
-        from graphify.prs import cmd_prs
-        cmd_prs(sys.argv[2:])
     elif cmd == "hook":
         from graphify.hooks import (
             install as hook_install,
@@ -2798,7 +2518,7 @@ def main() -> None:
         p.add_argument("--nodes", nargs="*", default=[])
         p.add_argument("--memory-dir", default="graphify-out/memory")
         opts = p.parse_args(sys.argv[2:])
-        from graphify.ingest import save_query_result as _sqr
+        from graphify.querylog import save_query_result as _sqr
 
         out = _sqr(
             question=opts.question,
@@ -3061,41 +2781,6 @@ def main() -> None:
             print(json.dumps(format_diagnostic_json(summary), indent=2))
         else:
             print(format_diagnostic_report(summary))
-
-    elif cmd == "add":
-        if len(sys.argv) < 3:
-            print(
-                "Usage: graphify add <url> [--author Name] [--contributor Name] [--dir ./raw]",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-        from graphify.ingest import ingest as _ingest
-
-        url = sys.argv[2]
-        author: str | None = None
-        contributor: str | None = None
-        target_dir = Path("raw")
-        args = sys.argv[3:]
-        i = 0
-        while i < len(args):
-            if args[i] == "--author" and i + 1 < len(args):
-                author = args[i + 1]
-                i += 2
-            elif args[i] == "--contributor" and i + 1 < len(args):
-                contributor = args[i + 1]
-                i += 2
-            elif args[i] == "--dir" and i + 1 < len(args):
-                target_dir = Path(args[i + 1])
-                i += 2
-            else:
-                i += 1
-        try:
-            saved = _ingest(url, target_dir, author=author, contributor=contributor)
-            print(f"Saved to {saved}")
-            print("Run /graphify --update in your AI assistant to update the graph.")
-        except Exception as exc:
-            print(f"error: {exc}", file=sys.stderr)
-            sys.exit(1)
 
     elif cmd == "watch":
         watch_path = Path(sys.argv[2]) if len(sys.argv) > 2 else Path(".")
@@ -3845,7 +3530,7 @@ def main() -> None:
                 "Usage: graphify extract <path> [--backend gemini|kimi|claude|openai|deepseek|ollama] "
                 "[--model M] [--mode deep] [--out DIR] [--google-workspace] [--no-cluster] "
                 "[--max-workers N] [--token-budget N] [--max-concurrency N] "
-                "[--api-timeout S] [--postgres DSN]",
+                "[--api-timeout S]",
                 file=sys.stderr,
             )
             sys.exit(1)
@@ -3864,7 +3549,6 @@ def main() -> None:
         model: str | None = None
         extract_mode: str | None = None
         out_dir: Path | None = None
-        cli_postgres_dsn: str | None = None
         no_cluster = False
         dedup_llm = False
         google_workspace = False
@@ -3960,15 +3644,11 @@ def main() -> None:
                 cli_excludes.append(args[i + 1]); i += 2
             elif a.startswith("--exclude="):
                 cli_excludes.append(a.split("=", 1)[1]); i += 1
-            elif a == "--postgres" and i + 1 < len(args):
-                cli_postgres_dsn = args[i + 1]; i += 2
-            elif a.startswith("--postgres="):
-                cli_postgres_dsn = a.split("=", 1)[1]; i += 1
             else:
                 i += 1
 
-        if not has_path and cli_postgres_dsn is None:
-            print("error: must specify a path to scan or a --postgres DSN", file=sys.stderr)
+        if not has_path:
+            print("error: must specify a path to scan", file=sys.stderr)
             sys.exit(1)
 
         _VALID_MODES = {"deep"}
@@ -4251,25 +3931,13 @@ def main() -> None:
                 sem_result["input_tokens"] += fresh.get("input_tokens", 0)
                 sem_result["output_tokens"] += fresh.get("output_tokens", 0)
 
-        pg_result: dict = {"nodes": [], "edges": []}
-        if cli_postgres_dsn is not None:
-            from graphify.pg_introspect import introspect_postgres
-            print(f"[graphify extract] introspecting PostgreSQL schema...")
-            try:
-                pg_result = introspect_postgres(cli_postgres_dsn)
-            except (ConnectionError, ImportError) as exc:
-                print(f"error: {exc}", file=sys.stderr)
-                sys.exit(1)
-            print(f"[graphify extract] PostgreSQL: {len(pg_result['nodes'])} nodes, "
-                  f"{len(pg_result['edges'])} edges")
-
-        # Merge AST + semantic + pg_result. Order matters for deduplication: passing AST
+        # Merge AST + semantic. Order matters for deduplication: passing AST
         # first means semantic node attributes win on collision (richer labels
         # for symbols also referenced in docs). Hyperedges only come from the
         # semantic side.
         merged: dict = {
-            "nodes": list(ast_result.get("nodes", [])) + list(sem_result.get("nodes", [])) + list(pg_result.get("nodes", [])),
-            "edges": list(ast_result.get("edges", [])) + list(sem_result.get("edges", [])) + list(pg_result.get("edges", [])),
+            "nodes": list(ast_result.get("nodes", [])) + list(sem_result.get("nodes", [])),
+            "edges": list(ast_result.get("edges", [])) + list(sem_result.get("edges", [])),
             "hyperedges": list(sem_result.get("hyperedges", [])),
             "input_tokens": ast_result.get("input_tokens", 0) + sem_result.get("input_tokens", 0),
             "output_tokens": ast_result.get("output_tokens", 0) + sem_result.get("output_tokens", 0),

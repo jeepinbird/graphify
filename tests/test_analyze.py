@@ -127,25 +127,6 @@ def test_surprise_score_accepts_precomputed_degrees():
     assert _surprise_score(*args) == _surprise_score(*args, dict(G.degree()))
 
 
-def test_surprising_connections_cross_type_scores_higher():
-    """Code↔paper edge should score higher than code↔code edge."""
-    G = nx.Graph()
-    for nid, label, src in [
-        ("a", "Transformer", "code/model.py"),
-        ("b", "FlashAttn", "papers/flash.pdf"),
-        ("c", "Trainer", "code/train.py"),
-        ("d", "Dataset", "code/data.py"),
-    ]:
-        G.add_node(nid, label=label, source_file=src, file_type="code")
-    G.add_edge("a", "b", relation="references", confidence="EXTRACTED", weight=1.0, source_file="code/model.py")
-    G.add_edge("c", "d", relation="calls", confidence="EXTRACTED", weight=1.0, source_file="code/train.py")
-    nc = {"a": 0, "b": 1, "c": 0, "d": 0}
-    score_cross, reasons_cross = _surprise_score(G, "a", "b", G.edges["a", "b"], nc, "code/model.py", "papers/flash.pdf")
-    score_same, _ = _surprise_score(G, "c", "d", G.edges["c", "d"], nc, "code/train.py", "code/data.py")
-    assert score_cross > score_same
-    assert any("code" in r and "paper" in r for r in reasons_cross)
-
-
 def _make_cross_lang_graph():
     """Helper: Python node in backend/, TypeScript node in frontend/, different communities."""
     G = nx.Graph()
@@ -210,17 +191,17 @@ def test_cross_language_semantically_similar_not_suppressed():
 def test_same_language_inferred_calls_not_suppressed():
     """INFERRED calls within the same language family must not be affected."""
     G = nx.Graph()
-    G.add_node("py_a", label="ModuleA", source_file="src/a.py", file_type="code")
-    G.add_node("py_b", label="ModuleB", source_file="src/b.py", file_type="code")
+    G.add_node("py_a", label="ModuleA", source_file="src/a.sql", file_type="code")
+    G.add_node("py_b", label="ModuleB", source_file="src/b.sql", file_type="code")
     G.add_node("py_c", label="ModuleC", source_file="src/c.py", file_type="code")
     G.add_node("py_d", label="ModuleD", source_file="src/d.py", file_type="code")
     G.add_edge("py_a", "py_b", relation="calls", confidence="INFERRED",
-               weight=0.8, source_file="src/a.py")
+               weight=0.8, source_file="src/a.sql")
     G.add_edge("py_c", "py_d", relation="calls", confidence="EXTRACTED",
                weight=1.0, source_file="src/c.py")
     nc = {"py_a": 0, "py_b": 1, "py_c": 0, "py_d": 1}
     score_inf, _ = _surprise_score(G, "py_a", "py_b", G.edges["py_a", "py_b"], nc,
-                                    "src/a.py", "src/b.py")
+                                    "src/a.sql", "src/b.sql")
     score_ext, _ = _surprise_score(G, "py_c", "py_d", G.edges["py_c", "py_d"], nc,
                                     "src/c.py", "src/d.py")
     assert score_inf > score_ext
@@ -248,19 +229,13 @@ def test_surprising_connections_have_why_field():
 
 
 def test_file_category():
-    assert _file_category("model.py") == "code"
-    assert _file_category("flash.pdf") == "paper"
-    assert _file_category("diagram.png") == "image"
+    # graphify is scoped to SQL (code) and Markdown/knowledge-base files (doc).
+    assert _file_category("schema.sql") == "code"
     assert _file_category("notes.md") == "doc"
-    # Languages added in later releases — would misclassify as "doc" without detect.py import
-    assert _file_category("app.swift") == "code"
-    assert _file_category("plugin.lua") == "code"
-    assert _file_category("build.zig") == "code"
-    assert _file_category("deploy.ps1") == "code"
-    assert _file_category("server.ex") == "code"
-    assert _file_category("component.jsx") == "code"
-    assert _file_category("analysis.jl") == "code"
-    assert _file_category("view.m") == "code"
+    assert _file_category("guide.mdx") == "doc"
+    # Anything else falls back to "doc".
+    assert _file_category("model.py") == "doc"
+    assert _file_category("vendor/random.xyz") == "doc"
 
 
 def test_is_concept_node_empty_source():
@@ -351,10 +326,10 @@ def test_graph_diff_empty_diff():
 
 def _make_code_doc_graph():
     G = nx.Graph()
-    G.add_node("py_fn", label="ProcessData", source_file="src/processor.py", file_type="code")
+    G.add_node("py_fn", label="ProcessData", source_file="src/processor.sql", file_type="code")
     G.add_node("md_doc", label="README Section", source_file="docs/readme.md", file_type="document")
-    G.add_node("py_a", label="ServiceA", source_file="src/service.py", file_type="code")
-    G.add_node("py_b", label="ServiceB", source_file="src/utils.py", file_type="code")
+    G.add_node("py_a", label="ServiceA", source_file="src/service.sql", file_type="code")
+    G.add_node("py_b", label="ServiceB", source_file="src/utils.sql", file_type="code")
     return G
 
 
@@ -362,16 +337,16 @@ def test_code_doc_inferred_calls_suppressed():
     """Code→doc INFERRED calls edge should score lower than same-language EXTRACTED."""
     G = _make_code_doc_graph()
     G.add_edge("py_fn", "md_doc", relation="calls", confidence="INFERRED",
-               weight=0.8, source_file="src/processor.py")
+               weight=0.8, source_file="src/processor.sql")
     G.add_edge("py_a", "py_b", relation="calls", confidence="EXTRACTED",
-               weight=1.0, source_file="src/service.py")
+               weight=1.0, source_file="src/service.sql")
     nc = {"py_fn": 0, "md_doc": 1, "py_a": 0, "py_b": 0}
     score_noise, _ = _surprise_score(G, "py_fn", "md_doc",
                                      G.edges["py_fn", "md_doc"], nc,
-                                     "src/processor.py", "docs/readme.md")
+                                     "src/processor.sql", "docs/readme.md")
     score_real, _ = _surprise_score(G, "py_a", "py_b",
                                     G.edges["py_a", "py_b"], nc,
-                                    "src/service.py", "src/utils.py")
+                                    "src/service.sql", "src/utils.sql")
     assert score_noise <= score_real
 
 
@@ -379,16 +354,16 @@ def test_code_doc_inferred_uses_suppressed():
     """Code→doc INFERRED uses edge should score lower than same-language EXTRACTED."""
     G = _make_code_doc_graph()
     G.add_edge("py_fn", "md_doc", relation="uses", confidence="INFERRED",
-               weight=0.8, source_file="src/processor.py")
+               weight=0.8, source_file="src/processor.sql")
     G.add_edge("py_a", "py_b", relation="calls", confidence="EXTRACTED",
-               weight=1.0, source_file="src/service.py")
+               weight=1.0, source_file="src/service.sql")
     nc = {"py_fn": 0, "md_doc": 1, "py_a": 0, "py_b": 0}
     score_noise, _ = _surprise_score(G, "py_fn", "md_doc",
                                      G.edges["py_fn", "md_doc"], nc,
-                                     "src/processor.py", "docs/readme.md")
+                                     "src/processor.sql", "docs/readme.md")
     score_real, _ = _surprise_score(G, "py_a", "py_b",
                                     G.edges["py_a", "py_b"], nc,
-                                    "src/service.py", "src/utils.py")
+                                    "src/service.sql", "src/utils.sql")
     assert score_noise <= score_real
 
 
@@ -396,11 +371,11 @@ def test_code_doc_extracted_calls_not_suppressed():
     """EXTRACTED code↔doc edges are real facts — must not be penalised."""
     G = _make_code_doc_graph()
     G.add_edge("py_fn", "md_doc", relation="calls", confidence="EXTRACTED",
-               weight=1.0, source_file="src/processor.py")
+               weight=1.0, source_file="src/processor.sql")
     nc = {"py_fn": 0, "md_doc": 1}
     score, _ = _surprise_score(G, "py_fn", "md_doc",
                                G.edges["py_fn", "md_doc"], nc,
-                               "src/processor.py", "docs/readme.md")
+                               "src/processor.sql", "docs/readme.md")
     assert score >= 1
 
 
@@ -408,16 +383,16 @@ def test_code_doc_inferred_semantically_similar_not_suppressed():
     """`semantically_similar_to` across code↔doc is explicit LLM insight — must not be suppressed."""
     G = _make_code_doc_graph()
     G.add_edge("py_fn", "md_doc", relation="semantically_similar_to",
-               confidence="INFERRED", weight=0.85, source_file="src/processor.py")
+               confidence="INFERRED", weight=0.85, source_file="src/processor.sql")
     G.add_edge("py_a", "py_b", relation="calls", confidence="EXTRACTED",
-               weight=1.0, source_file="src/service.py")
+               weight=1.0, source_file="src/service.sql")
     nc = {"py_fn": 0, "md_doc": 1, "py_a": 0, "py_b": 0}
     score_sem, _ = _surprise_score(G, "py_fn", "md_doc",
                                    G.edges["py_fn", "md_doc"], nc,
-                                   "src/processor.py", "docs/readme.md")
+                                   "src/processor.sql", "docs/readme.md")
     score_same, _ = _surprise_score(G, "py_a", "py_b",
                                     G.edges["py_a", "py_b"], nc,
-                                    "src/service.py", "src/utils.py")
+                                    "src/service.sql", "src/utils.sql")
     assert score_sem > score_same
 
 
@@ -426,21 +401,21 @@ def test_code_unknown_extension_inferred_calls_suppressed():
     calls/uses to unknown-extension files are suppressed the same as code↔doc."""
     assert _file_category("vendor/random.xyz") == "doc"
     G = nx.Graph()
-    G.add_node("py_fn", label="Handler", source_file="src/handler.py", file_type="code")
+    G.add_node("py_fn", label="Handler", source_file="src/handler.sql", file_type="code")
     G.add_node("unk", label="Handler", source_file="vendor/unknown.xyz", file_type="document")
-    G.add_node("py_a", label="A", source_file="src/a.py", file_type="code")
-    G.add_node("py_b", label="B", source_file="src/b.py", file_type="code")
+    G.add_node("py_a", label="A", source_file="src/a.sql", file_type="code")
+    G.add_node("py_b", label="B", source_file="src/b.sql", file_type="code")
     G.add_edge("py_fn", "unk", relation="calls", confidence="INFERRED",
-               weight=0.8, source_file="src/handler.py")
+               weight=0.8, source_file="src/handler.sql")
     G.add_edge("py_a", "py_b", relation="calls", confidence="EXTRACTED",
-               weight=1.0, source_file="src/a.py")
+               weight=1.0, source_file="src/a.sql")
     nc = {"py_fn": 0, "unk": 1, "py_a": 0, "py_b": 0}
     score_unk, _ = _surprise_score(G, "py_fn", "unk",
                                    G.edges["py_fn", "unk"], nc,
-                                   "src/handler.py", "vendor/unknown.xyz")
+                                   "src/handler.sql", "vendor/unknown.xyz")
     score_same, _ = _surprise_score(G, "py_a", "py_b",
                                     G.edges["py_a", "py_b"], nc,
-                                    "src/a.py", "src/b.py")
+                                    "src/a.sql", "src/b.sql")
     assert score_unk <= score_same
 
 
@@ -450,19 +425,19 @@ def test_code_paper_inferred_calls_not_suppressed():
     G.add_node("py_model", label="Transformer", source_file="src/model.py", file_type="code")
     G.add_node("pdf_paper", label="Attention Is All You Need", source_file="papers/vaswani.pdf",
                file_type="paper")
-    G.add_node("py_a", label="ServiceA", source_file="src/service.py", file_type="code")
-    G.add_node("py_b", label="ServiceB", source_file="src/utils.py", file_type="code")
+    G.add_node("py_a", label="ServiceA", source_file="src/service.sql", file_type="code")
+    G.add_node("py_b", label="ServiceB", source_file="src/utils.sql", file_type="code")
     G.add_edge("py_model", "pdf_paper", relation="calls", confidence="INFERRED",
                weight=0.8, source_file="src/model.py")
     G.add_edge("py_a", "py_b", relation="calls", confidence="EXTRACTED",
-               weight=1.0, source_file="src/service.py")
+               weight=1.0, source_file="src/service.sql")
     nc = {"py_model": 0, "pdf_paper": 1, "py_a": 0, "py_b": 1}
     score_cross, _ = _surprise_score(G, "py_model", "pdf_paper",
                                      G.edges["py_model", "pdf_paper"], nc,
                                      "src/model.py", "papers/vaswani.pdf")
     score_same, _ = _surprise_score(G, "py_a", "py_b",
                                     G.edges["py_a", "py_b"], nc,
-                                    "src/service.py", "src/utils.py")
+                                    "src/service.sql", "src/utils.sql")
     assert score_cross > score_same
 
 

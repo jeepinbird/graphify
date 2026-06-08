@@ -8,13 +8,6 @@ import shlex
 from enum import Enum
 from pathlib import Path
 
-from graphify.google_workspace import (
-    GOOGLE_WORKSPACE_EXTENSIONS,
-    convert_google_workspace_file,
-    google_workspace_enabled,
-)
-
-
 class FileType(str, Enum):
     CODE = "code"
     DOCUMENT = "document"
@@ -25,12 +18,16 @@ class FileType(str, Enum):
 
 _MANIFEST_PATH = "graphify-out/manifest.json"
 
-CODE_EXTENSIONS = {'.py', '.ts', '.tsx', '.js', '.jsx', '.mjs', '.ejs', '.ets', '.go', '.rs', '.java', '.groovy', '.gradle', '.cpp', '.cc', '.cxx', '.c', '.h', '.hpp', '.rb', '.swift', '.kt', '.kts', '.cs', '.scala', '.php', '.lua', '.luau', '.toc', '.zig', '.ps1', '.ex', '.exs', '.m', '.mm', '.jl', '.vue', '.svelte', '.astro', '.dart', '.v', '.sv', '.svh', '.sql', '.r', '.f', '.F', '.f90', '.F90', '.f95', '.F95', '.f03', '.F03', '.f08', '.F08', '.pas', '.pp', '.dpr', '.dpk', '.lpr', '.inc', '.dfm', '.lfm', '.lpk', '.sh', '.bash', '.json', '.tf', '.tfvars', '.hcl', '.dm', '.dme', '.dmi', '.dmm', '.dmf', '.sln', '.csproj', '.fsproj', '.vbproj', '.razor', '.cshtml', '.cls', '.trigger'}
-DOC_EXTENSIONS = {'.md', '.mdx', '.qmd', '.txt', '.rst', '.html', '.yaml', '.yml'}
-PAPER_EXTENSIONS = {'.pdf'}
-IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'}
-OFFICE_EXTENSIONS = {'.docx', '.xlsx'}
-VIDEO_EXTENSIONS = {'.mp4', '.mov', '.webm', '.mkv', '.avi', '.m4v', '.mp3', '.wav', '.m4a', '.ogg'}
+# graphify is scoped to relationship graphing for SQL and Markdown/knowledge-base
+# files. Only these two file kinds have extractors (see graphify/extract.py); the
+# remaining category sets are kept (empty) so downstream imports stay valid.
+CODE_EXTENSIONS = {'.sql'}
+DOC_EXTENSIONS = {'.md', '.mdx', '.qmd'}
+PAPER_EXTENSIONS: set[str] = set()
+IMAGE_EXTENSIONS: set[str] = set()
+OFFICE_EXTENSIONS: set[str] = set()
+VIDEO_EXTENSIONS: set[str] = set()
+GOOGLE_WORKSPACE_EXTENSIONS: set[str] = set()
 
 CORPUS_WARN_THRESHOLD = 50_000    # words - below this, warn "you may not need a graph"
 CORPUS_UPPER_THRESHOLD = 500_000  # words - above this, warn about token cost
@@ -971,7 +968,7 @@ def detect(root: Path, *, follow_symlinks: bool | None = None, google_workspace:
     root = root.resolve()
     if follow_symlinks is None:
         follow_symlinks = _auto_follow_symlinks(root)
-    google_workspace = google_workspace_enabled() if google_workspace is None else google_workspace
+    google_workspace = bool(google_workspace)
     files: dict[FileType, list[str]] = {
         FileType.CODE: [],
         FileType.DOCUMENT: [],
@@ -1049,42 +1046,8 @@ def detect(root: Path, *, follow_symlinks: bool | None = None, google_workspace:
             continue
         ftype = classify_file(p)
         if ftype:
-            if p.suffix.lower() in GOOGLE_WORKSPACE_EXTENSIONS:
-                if not google_workspace:
-                    skipped_sensitive.append(
-                        str(p)
-                        + " [Google Workspace shortcut skipped - pass --google-workspace "
-                        "or set GRAPHIFY_GOOGLE_WORKSPACE=1]"
-                    )
-                    continue
-                try:
-                    md_path = convert_google_workspace_file(p, converted_dir, xlsx_to_markdown=xlsx_to_markdown)
-                except Exception as exc:
-                    skipped_sensitive.append(str(p) + f" [Google Workspace export failed: {exc}]")
-                    continue
-                if md_path:
-                    if _is_ignored(md_path, root, ignore_patterns):
-                        continue
-                    files[ftype].append(str(md_path))
-                    total_words += count_words(md_path)
-                else:
-                    skipped_sensitive.append(str(p) + " [Google Workspace export produced no readable text]")
-                continue
-            # Office files: convert to markdown sidecar so subagents can read them
-            if p.suffix.lower() in OFFICE_EXTENSIONS:
-                md_path = convert_office_file(p, converted_dir)
-                if md_path:
-                    if _is_ignored(md_path, root, ignore_patterns):
-                        continue
-                    files[ftype].append(str(md_path))
-                    total_words += count_words(md_path)
-                else:
-                    # Conversion failed (library not installed) - skip with note
-                    skipped_sensitive.append(str(p) + " [office conversion failed - pip install graphifyy[office]]")
-                continue
             files[ftype].append(str(p))
-            if ftype != FileType.VIDEO:
-                total_words += count_words(p)
+            total_words += count_words(p)
 
     for ftype in files:
         files[ftype].sort()

@@ -7,13 +7,13 @@ import graphify.__main__ as mainmod
 
 
 def _make_corpus(tmp_path):
-    """Minimal corpus: one Go code file + one Markdown doc.
+    """Minimal corpus: one SQL code file + one Markdown doc.
 
     Both file types are needed so semantic extraction is requested
     (docs path triggers the LLM step we want to assert against).
     """
-    (tmp_path / "main.go").write_text("package main\nfunc main() {}\n")
-    (tmp_path / "README.md").write_text("# Notes\nThe main function entry point.\n")
+    (tmp_path / "schema.sql").write_text("CREATE TABLE users (id int);\n")
+    (tmp_path / "README.md").write_text("# Notes\nThe users table entry point.\n")
     return tmp_path
 
 
@@ -125,9 +125,9 @@ def test_extract_succeeds_when_at_least_one_chunk_completes(
 
 def _code_only_corpus(tmp_path):
     """A corpus with only code — no docs/papers/images."""
-    (tmp_path / "auth.py").write_text(
-        "def login(user):\n    return validate(user)\n\n"
-        "def validate(user):\n    return True\n"
+    (tmp_path / "auth.sql").write_text(
+        "CREATE TABLE users (id int);\n"
+        "CREATE TABLE sessions (id int, user_id int REFERENCES users);\n"
     )
     return tmp_path
 

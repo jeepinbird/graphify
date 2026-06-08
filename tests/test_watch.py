@@ -34,24 +34,14 @@ def test_notify_only_idempotent(tmp_path):
 # --- _WATCHED_EXTENSIONS ---
 
 def test_watched_extensions_includes_code():
-    assert ".py" in _WATCHED_EXTENSIONS
-    assert ".ts" in _WATCHED_EXTENSIONS
-    assert ".go" in _WATCHED_EXTENSIONS
-    assert ".rs" in _WATCHED_EXTENSIONS
+    assert ".sql" in _WATCHED_EXTENSIONS
 
 def test_watched_extensions_includes_docs():
     assert ".md" in _WATCHED_EXTENSIONS
-    assert ".txt" in _WATCHED_EXTENSIONS
-    assert ".pdf" in _WATCHED_EXTENSIONS
-
-def test_watched_extensions_includes_images():
-    assert ".png" in _WATCHED_EXTENSIONS
-    assert ".jpg" in _WATCHED_EXTENSIONS
+    assert ".mdx" in _WATCHED_EXTENSIONS
 
 def test_watched_extensions_excludes_noise():
-    # .json is now indexed (bash/JSON extractors added in #866)
-    assert ".json" in _WATCHED_EXTENSIONS
-    assert ".sh" in _WATCHED_EXTENSIONS
+    assert ".py" not in _WATCHED_EXTENSIONS
     assert ".pyc" not in _WATCHED_EXTENSIONS
     assert ".log" not in _WATCHED_EXTENSIONS
 
@@ -149,7 +139,7 @@ def test_graphify_root_preserves_relative_when_invoked_with_relative_path(tmp_pa
 
     corpus = tmp_path / "corpus"
     corpus.mkdir()
-    (corpus / "lib.py").write_text("def f(): pass\n", encoding="utf-8")
+    (corpus / "lib.sql").write_text("CREATE FUNCTION f() RETURNS int AS $$ BEGIN RETURN 1; END $$ LANGUAGE plpgsql;\n", encoding="utf-8")
 
     monkeypatch.chdir(corpus)
     assert _rebuild_code(Path("."), acquire_lock=False) is True
@@ -167,7 +157,7 @@ def test_graphify_root_preserves_absolute_when_user_supplied(tmp_path):
 
     corpus = tmp_path / "corpus"
     corpus.mkdir()
-    (corpus / "lib.py").write_text("def f(): pass\n", encoding="utf-8")
+    (corpus / "lib.sql").write_text("CREATE FUNCTION f() RETURNS int AS $$ BEGIN RETURN 1; END $$ LANGUAGE plpgsql;\n", encoding="utf-8")
     assert _rebuild_code(corpus, acquire_lock=False) is True
 
     saved = (corpus / "graphify-out" / ".graphify_root").read_text(encoding="utf-8")
@@ -185,11 +175,11 @@ def test_rebuild_code_evicts_nodes_from_deleted_files(tmp_path):
     corpus = tmp_path / "corpus"
     corpus.mkdir()
 
-    (corpus / "auth.py").write_text(
-        "def login(): pass\ndef logout(): pass\n", encoding="utf-8"
+    (corpus / "auth.sql").write_text(
+        "CREATE FUNCTION login() RETURNS int AS $$ BEGIN RETURN 1; END $$ LANGUAGE plpgsql;\nCREATE FUNCTION logout() RETURNS int AS $$ BEGIN RETURN 1; END $$ LANGUAGE plpgsql;\n", encoding="utf-8"
     )
-    (corpus / "utils.py").write_text(
-        "def format_date(): pass\n", encoding="utf-8"
+    (corpus / "utils.sql").write_text(
+        "CREATE FUNCTION format_date() RETURNS int AS $$ BEGIN RETURN 1; END $$ LANGUAGE plpgsql;\n", encoding="utf-8"
     )
 
     assert _rebuild_code(corpus, acquire_lock=False) is True
@@ -198,7 +188,7 @@ def test_rebuild_code_evicts_nodes_from_deleted_files(tmp_path):
     node_labels_before = {n["label"] for n in data.get("nodes", [])}
     assert "format_date()" in node_labels_before
 
-    (corpus / "utils.py").unlink()
+    (corpus / "utils.sql").unlink()
 
     assert _rebuild_code(corpus, acquire_lock=False) is True
     data = json.loads(graph_path.read_text(encoding="utf-8"))
@@ -209,19 +199,18 @@ def test_rebuild_code_evicts_nodes_from_deleted_files(tmp_path):
 
 def test_rebuild_code_evicts_removed_symbol_from_surviving_file(tmp_path):
     """#1116: graphify update (_rebuild_code with no changed_paths) must prune a
-    symbol removed from a file that still exists — and its inbound call edge —
-    without dropping genuine semantic nodes that share the surviving file."""
+    symbol removed from a file that still exists, without dropping genuine
+    semantic nodes that share the surviving file."""
     import json
     from graphify.watch import _rebuild_code
 
     corpus = tmp_path / "corpus"
     corpus.mkdir()
 
-    (corpus / "a.py").write_text(
-        "def foo(): pass\ndef bar(): pass\n", encoding="utf-8"
-    )
-    (corpus / "b.py").write_text(
-        "from a import foo\n\ndef caller():\n    foo()\n", encoding="utf-8"
+    (corpus / "a.sql").write_text(
+        "CREATE FUNCTION foo() RETURNS int AS $$ BEGIN RETURN 1; END $$ LANGUAGE plpgsql;\n"
+        "CREATE FUNCTION bar() RETURNS int AS $$ BEGIN RETURN 1; END $$ LANGUAGE plpgsql;\n",
+        encoding="utf-8",
     )
 
     assert _rebuild_code(corpus, acquire_lock=False) is True
@@ -231,34 +220,29 @@ def test_rebuild_code_evicts_removed_symbol_from_surviving_file(tmp_path):
     def labels(d):
         return {n["label"] for n in d.get("nodes", [])}
 
-    def id_for(d, label):
-        return next(n["id"] for n in d.get("nodes", []) if n["label"] == label)
-
     def edges(d):
         return d.get("links", d.get("edges", []))
 
+    foo_id = next(n["id"] for n in data.get("nodes", []) if n["label"] == "foo()")
     before = labels(data)
-    assert {"foo()", "bar()", "caller()"} <= before
-    foo_id = id_for(data, "foo()")
-    caller_id = id_for(data, "caller()")
-    assert any(
-        {e.get("source"), e.get("target")} == {caller_id, foo_id}
-        for e in edges(data)
-    ), "cross-file caller->foo call edge must exist before removal"
+    assert {"foo()", "bar()"} <= before
 
-    # Pre-seed a semantic node on the surviving a.py (no AST id, no _origin
+    # Pre-seed a semantic node on the surviving a.sql (no AST id, no _origin
     # marker). A naive "evict every re-extracted file's nodes by source_file"
     # fix would wrongly delete this; the identity-based fix must keep it.
     data["nodes"].append({
         "id": "a_authconcept",
         "label": "AuthConcept",
         "file_type": "concept",
-        "source_file": "a.py",
+        "source_file": "a.sql",
     })
     graph_path.write_text(json.dumps(data), encoding="utf-8")
 
-    # Remove foo() from a.py (keep bar); leave b.py untouched.
-    (corpus / "a.py").write_text("def bar(): pass\n", encoding="utf-8")
+    # Remove foo() from a.sql (keep bar).
+    (corpus / "a.sql").write_text(
+        "CREATE FUNCTION bar() RETURNS int AS $$ BEGIN RETURN 1; END $$ LANGUAGE plpgsql;\n",
+        encoding="utf-8",
+    )
 
     assert _rebuild_code(corpus, acquire_lock=False, force=True) is True
     after_data = json.loads(graph_path.read_text(encoding="utf-8"))
@@ -270,7 +254,6 @@ def test_rebuild_code_evicts_removed_symbol_from_surviving_file(tmp_path):
         for e in edges(after_data)
     ), "dangling edge to the removed symbol must be dropped"
     assert "bar()" in after, "surviving symbol in the same file must be kept"
-    assert "caller()" in after, "unchanged file's nodes must be kept"
     assert "AuthConcept" in after, "semantic node on a surviving file must not be evicted"
 
 
@@ -286,7 +269,7 @@ def test_rebuild_code_preupgrade_marker_less_node_one_cycle_lag(tmp_path):
 
     corpus = tmp_path / "corpus"
     corpus.mkdir()
-    (corpus / "a.py").write_text("def bar(): pass\n", encoding="utf-8")
+    (corpus / "a.sql").write_text("CREATE FUNCTION bar() RETURNS int AS $$ BEGIN RETURN 1; END $$ LANGUAGE plpgsql;\n", encoding="utf-8")
 
     assert _rebuild_code(corpus, acquire_lock=False) is True
     graph_path = corpus / "graphify-out" / "graph.json"
@@ -304,7 +287,7 @@ def test_rebuild_code_preupgrade_marker_less_node_one_cycle_lag(tmp_path):
         "id": "a_foo",
         "label": "foo()",
         "file_type": "function",
-        "source_file": "a.py",
+        "source_file": "a.sql",
     })
     graph_path.write_text(json.dumps(data), encoding="utf-8")
 
@@ -352,8 +335,8 @@ def test_rebuild_code_is_idempotent_when_cluster_ids_flap(tmp_path, monkeypatch)
     from graphify import cluster as cluster_mod
     from graphify.watch import _rebuild_code
 
-    src = tmp_path / "app.py"
-    src.write_text("def alpha():\n    return 1\n\ndef beta():\n    return alpha()\n", encoding="utf-8")
+    src = tmp_path / "app.sql"
+    src.write_text("CREATE FUNCTION alpha() RETURNS int AS $$ BEGIN RETURN 1; END $$ LANGUAGE plpgsql;\nCREATE FUNCTION beta() RETURNS int AS $$ BEGIN RETURN 1; END $$ LANGUAGE plpgsql;\n", encoding="utf-8")
 
     calls = {"n": 0}
 
@@ -385,8 +368,8 @@ def test_rebuild_code_skips_cluster_when_topology_unchanged(tmp_path, monkeypatc
     from graphify import cluster as cluster_mod
     from graphify.watch import _rebuild_code
 
-    src = tmp_path / "app.py"
-    src.write_text("def alpha():\n    return 1\n\ndef beta():\n    return alpha()\n", encoding="utf-8")
+    src = tmp_path / "app.sql"
+    src.write_text("CREATE FUNCTION alpha() RETURNS int AS $$ BEGIN RETURN 1; END $$ LANGUAGE plpgsql;\nCREATE FUNCTION beta() RETURNS int AS $$ BEGIN RETURN 1; END $$ LANGUAGE plpgsql;\n", encoding="utf-8")
 
     calls = {"n": 0}
 
@@ -447,11 +430,11 @@ def test_watch_handler_honors_graphifyignore(tmp_path, monkeypatch):
     assert notify_calls == [], "ignored writes triggered a notify"
 
     # Non-ignored write — handler must accept and (after debounce) dispatch.
-    (tmp_path / "app.py").write_text("def f():\n    return 1\n", encoding="utf-8")
+    (tmp_path / "app.sql").write_text("CREATE TABLE app (id int);\n", encoding="utf-8")
     deadline = time.monotonic() + 5.0
     while time.monotonic() < deadline and not rebuild_calls:
         time.sleep(0.1)
-    assert rebuild_calls, "non-ignored .py write should have triggered _rebuild_code"
+    assert rebuild_calls, "non-ignored .sql write should have triggered _rebuild_code"
 
 
 @pytest.mark.skipif(not _watchdog_available(), reason="watchdog not installed")
@@ -610,10 +593,10 @@ def test_rebuild_code_prunes_deleted_file_nodes(tmp_path):
         check=True,
     )
 
-    keep = tmp_path / "keep.py"
-    drop = tmp_path / "drop.py"
-    keep.write_text("def keep_fn():\n    return 1\n", encoding="utf-8")
-    drop.write_text("def drop_fn():\n    return 2\n", encoding="utf-8")
+    keep = tmp_path / "keep.sql"
+    drop = tmp_path / "drop.sql"
+    keep.write_text("CREATE FUNCTION keep_fn() RETURNS int AS $$ BEGIN RETURN 1; END $$ LANGUAGE plpgsql;\n", encoding="utf-8")
+    drop.write_text("CREATE FUNCTION drop_fn() RETURNS int AS $$ BEGIN RETURN 1; END $$ LANGUAGE plpgsql;\n", encoding="utf-8")
 
     # Initial build covers both files.
     cwd = os.getcwd()
@@ -625,7 +608,7 @@ def test_rebuild_code_prunes_deleted_file_nodes(tmp_path):
         assert graph_path.exists()
         before = json.loads(graph_path.read_text(encoding="utf-8"))
         before_sources = {n.get("source_file") for n in before.get("nodes", [])}
-        assert "drop.py" in before_sources
+        assert "drop.sql" in before_sources
 
         # Now delete drop.py and re-run with it in the change list. This is what
         # the post-commit hook does when git diff --name-only HEAD~1 HEAD includes
@@ -634,15 +617,15 @@ def test_rebuild_code_prunes_deleted_file_nodes(tmp_path):
         drop.unlink()
         ok = _rebuild_code(
             tmp_path,
-            changed_paths=[Path("drop.py")],
+            changed_paths=[Path("drop.sql")],
             no_cluster=True,
         )
         assert ok is True, "rebuild should succeed even though the graph shrinks"
 
         after = json.loads(graph_path.read_text(encoding="utf-8"))
         after_sources = {n.get("source_file") for n in after.get("nodes", [])}
-        assert "drop.py" not in after_sources, "deleted file's nodes should be pruned"
-        assert "keep.py" in after_sources, "untouched file's nodes should survive"
+        assert "drop.sql" not in after_sources, "deleted file's nodes should be pruned"
+        assert "keep.sql" in after_sources, "untouched file's nodes should survive"
     finally:
         os.chdir(cwd)
 
