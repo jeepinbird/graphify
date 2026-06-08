@@ -19,9 +19,9 @@ class FileType(str, Enum):
 _MANIFEST_PATH = "graphify-out/manifest.json"
 
 # graphify is scoped to relationship graphing for SQL and Markdown/knowledge-base
-# files. Only these two file kinds have extractors (see graphify/extract.py); the
+# files. Only these file kinds have extractors (see graphify/extract.py); the
 # remaining category sets are kept (empty) so downstream imports stay valid.
-CODE_EXTENSIONS = {'.sql'}
+CODE_EXTENSIONS = {'.sql', '.py', '.go'}
 DOC_EXTENSIONS = {'.md', '.mdx', '.qmd'}
 PAPER_EXTENSIONS: set[str] = set()
 IMAGE_EXTENSIONS: set[str] = set()

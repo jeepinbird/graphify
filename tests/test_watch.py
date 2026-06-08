@@ -41,7 +41,11 @@ def test_watched_extensions_includes_docs():
     assert ".mdx" in _WATCHED_EXTENSIONS
 
 def test_watched_extensions_excludes_noise():
-    assert ".py" not in _WATCHED_EXTENSIONS
+    # Supported source extensions are watched...
+    assert ".py" in _WATCHED_EXTENSIONS
+    assert ".go" in _WATCHED_EXTENSIONS
+    assert ".sql" in _WATCHED_EXTENSIONS
+    # ...build artifacts and logs are not.
     assert ".pyc" not in _WATCHED_EXTENSIONS
     assert ".log" not in _WATCHED_EXTENSIONS
 

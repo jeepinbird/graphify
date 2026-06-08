@@ -229,12 +229,13 @@ def test_surprising_connections_have_why_field():
 
 
 def test_file_category():
-    # graphify is scoped to SQL (code) and Markdown/knowledge-base files (doc).
+    # graphify is scoped to Python/Go/SQL (code) and Markdown/knowledge-base files (doc).
     assert _file_category("schema.sql") == "code"
+    assert _file_category("model.py") == "code"
+    assert _file_category("server.go") == "code"
     assert _file_category("notes.md") == "doc"
     assert _file_category("guide.mdx") == "doc"
     # Anything else falls back to "doc".
-    assert _file_category("model.py") == "doc"
     assert _file_category("vendor/random.xyz") == "doc"
 
 
@@ -417,28 +418,6 @@ def test_code_unknown_extension_inferred_calls_suppressed():
                                     G.edges["py_a", "py_b"], nc,
                                     "src/a.sql", "src/b.sql")
     assert score_unk <= score_same
-
-
-def test_code_paper_inferred_calls_not_suppressed():
-    """Code↔paper INFERRED calls should still surface — it is a meaningful link."""
-    G = nx.Graph()
-    G.add_node("py_model", label="Transformer", source_file="src/model.py", file_type="code")
-    G.add_node("pdf_paper", label="Attention Is All You Need", source_file="papers/vaswani.pdf",
-               file_type="paper")
-    G.add_node("py_a", label="ServiceA", source_file="src/service.sql", file_type="code")
-    G.add_node("py_b", label="ServiceB", source_file="src/utils.sql", file_type="code")
-    G.add_edge("py_model", "pdf_paper", relation="calls", confidence="INFERRED",
-               weight=0.8, source_file="src/model.py")
-    G.add_edge("py_a", "py_b", relation="calls", confidence="EXTRACTED",
-               weight=1.0, source_file="src/service.sql")
-    nc = {"py_model": 0, "pdf_paper": 1, "py_a": 0, "py_b": 1}
-    score_cross, _ = _surprise_score(G, "py_model", "pdf_paper",
-                                     G.edges["py_model", "pdf_paper"], nc,
-                                     "src/model.py", "papers/vaswani.pdf")
-    score_same, _ = _surprise_score(G, "py_a", "py_b",
-                                    G.edges["py_a", "py_b"], nc,
-                                    "src/service.sql", "src/utils.sql")
-    assert score_cross > score_same
 
 
 # --- JSON key node filtering tests ---

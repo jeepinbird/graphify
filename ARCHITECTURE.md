@@ -36,16 +36,23 @@ outside `graphify-out/`.
 
 ## Extractors
 
-Only two file kinds are extracted (`graphify/extract.py`):
+Four file kinds are extracted (`graphify/extract.py`), all via tree-sitter:
 
-- **Markdown** (`.md` / `.mdx` / `.qmd`) — pure line-by-line parsing of headings
-  and their nesting. No third-party dependency.
-- **SQL** (`.sql`) — `tree-sitter-sql` parse of tables, views, functions,
-  procedures and triggers, plus the foreign-key / `reads_from` / `triggers`
-  relationships between them.
+- **Python** (`.py`) — modules, classes, functions and methods, with
+  `contains` / `method` / `inherits` / `calls` / `imports` edges. A cross-file
+  pass resolves imports and call targets to symbols defined in other files.
+- **Go** (`.go`) — packages, structs, interfaces, functions and methods;
+  receiver methods share one canonical type node scoped to the package dir.
+- **SQL** (`.sql`) — tables, views, functions, procedures and triggers, plus
+  the foreign-key / `reads_from` / `triggers` relationships between them.
+- **Markdown** (`.md` / `.mdx` / `.qmd`) — line-by-line parsing of headings and
+  their nesting.
 
-`extract()` merges per-file results, canonicalises file-node IDs to the
-`{parent_dir}_{stem}` spec form, and relativises `source_file` paths.
+`_DISPATCH` routes a file extension to its extractor; the shared tree-sitter
+engine carries dormant code for other languages (gated out of dispatch).
+`extract()` merges per-file results, runs the cross-file resolution passes,
+canonicalises file-node IDs to the `{parent_dir}_{stem}` spec form, and
+relativises `source_file` paths.
 
 ## Extraction output schema
 
