@@ -776,9 +776,8 @@ def check_update(watch_path: Path) -> bool:
     """Check for pending semantic update flag and notify the user if set.
 
     Cron-safe: always returns True so cron jobs do not alarm.
-    Non-code file changes (docs, papers, images) require LLM-backed
-    re-extraction via `/graphify --update` — this function only signals
-    that the update is needed.
+    Markdown doc changes require LLM-backed re-extraction via
+    `/graphify --update` — this function only signals that the update is needed.
     """
     flag = Path(watch_path) / _GRAPHIFY_OUT / "needs_update"
     if flag.exists():
@@ -806,8 +805,8 @@ def watch(watch_path: Path, debounce: float = 3.0) -> None:
     """
     Watch watch_path for new or modified files and auto-update the graph.
 
-    For code-only changes: re-runs AST extraction + rebuild immediately (no LLM).
-    For doc/paper/image changes: writes a needs_update flag and notifies the user
+    For SQL-only changes: re-runs AST extraction + rebuild immediately (no LLM).
+    For Markdown doc changes: writes a needs_update flag and notifies the user
     to run /graphify --update (LLM extraction required).
 
     debounce: seconds to wait after the last change before triggering (avoids

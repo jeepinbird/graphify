@@ -812,7 +812,6 @@ def main() -> None:
         print("    --max-concurrency N     parallel semantic chunks in flight (default: 4; set 1 for local LLMs)")
         print("    --api-timeout S         per-request timeout in seconds for the LLM client (default: 600)")
         print("    --out DIR               output dir (default: <path>); writes <DIR>/graphify-out/")
-        print("    --google-workspace      export .gdoc/.gsheet/.gslides shortcuts via gws before extraction")
         print("    --no-cluster            skip clustering, write raw extraction only")
         print("                            maps tables, views, functions + FK relationships;")
         print("                            column-level detail is not represented in the graph")
@@ -1634,7 +1633,7 @@ def main() -> None:
         # exiting silently when a hook-driven rebuild happens to be running.
         ok = _rebuild_code(watch_path, force=force, no_cluster=no_cluster, block_on_lock=True)
         if ok:
-            print("Code graph updated. For doc/paper/image changes run /graphify --update in your AI assistant.")
+            print("Graph updated. For Markdown doc changes run /graphify --update in your AI assistant.")
             if not (
                 os.environ.get("GEMINI_API_KEY")
                 or os.environ.get("GOOGLE_API_KEY")
@@ -2191,7 +2190,7 @@ def main() -> None:
         if len(sys.argv) < 3:
             print(
                 "Usage: graphify extract <path> [--backend gemini|kimi|claude|openai|deepseek|ollama] "
-                "[--model M] [--mode deep] [--out DIR] [--google-workspace] [--no-cluster] "
+                "[--model M] [--mode deep] [--out DIR] [--no-cluster] "
                 "[--max-workers N] [--token-budget N] [--max-concurrency N] "
                 "[--api-timeout S]",
                 file=sys.stderr,
@@ -2214,7 +2213,6 @@ def main() -> None:
         out_dir: Path | None = None
         no_cluster = False
         dedup_llm = False
-        google_workspace = False
         global_merge = False
         global_repo_tag: str | None = None
         # Performance/tuning knobs (issue #792). None means "use library default".
@@ -2273,8 +2271,6 @@ def main() -> None:
                 no_cluster = True; i += 1
             elif a == "--dedup-llm":
                 dedup_llm = True; i += 1
-            elif a == "--google-workspace":
-                google_workspace = True; i += 1
             elif a == "--global":
                 global_merge = True; i += 1
             elif a == "--as" and i + 1 < len(args):
@@ -2362,7 +2358,6 @@ def main() -> None:
             detection = _detect_incremental(
                 target,
                 manifest_path=str(manifest_path),
-                google_workspace=google_workspace or None,
                 extra_excludes=cli_excludes or None,
             )
             files_by_type = detection.get("files", {})
@@ -2375,7 +2370,7 @@ def main() -> None:
             unchanged_total = sum(len(v) for v in detection.get("unchanged_files", {}).values())
         else:
             print(f"[graphify extract] scanning {target}")
-            detection = _detect(target, google_workspace=google_workspace or None, extra_excludes=cli_excludes or None)
+            detection = _detect(target, extra_excludes=cli_excludes or None)
             files_by_type = detection.get("files", {})
             code_files = [Path(p) for p in files_by_type.get("code", [])]
             doc_files = [Path(p) for p in files_by_type.get("document", [])]
@@ -2387,15 +2382,12 @@ def main() -> None:
         semantic_files = doc_files + paper_files + image_files
         if incremental_mode:
             print(
-                f"[graphify extract] {len(code_files)} code, {len(doc_files)} docs, "
-                f"{len(paper_files)} papers, {len(image_files)} images changed; "
+                f"[graphify extract] {len(code_files)} SQL, {len(doc_files)} docs changed; "
                 f"{unchanged_total} unchanged; {len(deleted_files)} deleted"
             )
         else:
             print(
-                f"[graphify extract] found {len(code_files)} code, "
-                f"{len(doc_files)} docs, {len(paper_files)} papers, "
-                f"{len(image_files)} images"
+                f"[graphify extract] found {len(code_files)} SQL, {len(doc_files)} docs"
             )
 
         # Resolve the LLM backend only now that we know whether the corpus
@@ -2424,7 +2416,7 @@ def main() -> None:
                 reasons = []
                 if semantic_files:
                     reasons.append(
-                        f"{len(semantic_files)} doc/paper/image file(s) need semantic extraction"
+                        f"{len(semantic_files)} doc file(s) need semantic extraction"
                     )
                 if dedup_llm:
                     reasons.append("--dedup-llm was passed")
@@ -2432,7 +2424,7 @@ def main() -> None:
                     "error: no LLM API key found (" + "; ".join(reasons) + "). "
                     "Set GEMINI_API_KEY or GOOGLE_API_KEY (gemini), MOONSHOT_API_KEY "
                     "(kimi), ANTHROPIC_API_KEY (claude), OPENAI_API_KEY (openai), "
-                    "DEEPSEEK_API_KEY (deepseek), or pass --backend. A code-only "
+                    "DEEPSEEK_API_KEY (deepseek), or pass --backend. A SQL-only "
                     "corpus needs no key.",
                     file=sys.stderr,
                 )
